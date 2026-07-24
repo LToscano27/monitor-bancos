@@ -6,6 +6,8 @@ __pycache__/
 # Node
 node_modules/
 web/dist/
+# copia generada por scripts/sync-data.mjs (la fuente es data/ en la raíz)
+web/public/data/
 
 # Caché local de dumps crudos del BCRA (viven en %LOCALAPPDATA%\bcra-raw-cache,
 # pero por si alguien apunta la caché acá)

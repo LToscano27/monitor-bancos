@@ -1,0 +1,156 @@
+:root {
+  --bg: #0f1420;
+  --panel: #171e2e;
+  --panel2: #1e2739;
+  --line: #2a3550;
+  --txt: #e8edf6;
+  --mut: #8a97b2;
+  --acc: #4da3ff;
+  --acc2: #33d69f;
+  --warn: #ffb454;
+  --bad: #ff6b6b;
+  --good: #33d69f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+a { color: var(--acc); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 18px 20px 60px; }
+
+/* ---- barra de navegación ---- */
+nav.topnav {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 20px;
+  position: sticky; top: 0; background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
+nav.topnav .brand {
+  font-weight: 700; letter-spacing: .2px; margin-right: 18px; color: var(--txt);
+  display: flex; align-items: center; gap: 8px;
+}
+nav.topnav .brand:hover { text-decoration: none; }
+nav.topnav a.navlink {
+  color: var(--mut); padding: 6px 11px; border-radius: 8px; font-weight: 600; font-size: 13px;
+}
+nav.topnav a.navlink:hover { color: var(--txt); text-decoration: none; background: var(--panel2); }
+nav.topnav a.navlink.active { color: var(--acc); background: var(--panel2); }
+nav.topnav .spacer { flex: 1; }
+nav.topnav .badge {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 20px;
+  padding: 4px 12px; color: var(--acc); font-weight: 600; font-size: 12.5px;
+}
+
+/* ---- secciones y cards ---- */
+section { margin-top: 26px; }
+.stitle {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--mut);
+  margin: 0 0 12px; font-weight: 600;
+}
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+}
+.card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 620; }
+.card .cs { color: var(--mut); font-size: 11.5px; margin-bottom: 10px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* ---- KPIs ---- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; }
+.kpi .l { color: var(--mut); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+.kpi .v { font-size: 21px; font-weight: 680; margin-top: 5px; line-height: 1.1; }
+.kpi .deltas { display: flex; gap: 10px; margin-top: 6px; font-size: 11.5px; }
+.kpi .deltas span b { font-weight: 600; }
+.pos { color: var(--good); }
+.neg { color: var(--bad); }
+.mut { color: var(--mut); }
+
+/* ---- controles ---- */
+select, input[type="text"], input[type="search"], button.ctl {
+  background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600;
+  font-family: inherit;
+}
+button.ctl { cursor: pointer; }
+button.ctl:hover { border-color: var(--acc); }
+button.ctl.on { color: var(--acc); border-color: var(--acc); }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.controls label { color: var(--mut); font-size: 12px; font-weight: 600; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+  background: var(--panel2); color: var(--mut); border: none; padding: 6px 12px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.seg button.on { background: var(--panel); color: var(--acc); }
+
+/* ---- tablas ---- */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--mut); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+td.n, th.n { text-align: left; }
+tbody tr:hover { background: var(--panel2); }
+.rk { color: var(--mut); width: 26px; }
+
+.chartbox { position: relative; height: 380px; }
+.chartbox.sm { height: 300px; }
+.chartbox.xs { height: 240px; }
+
+.note {
+  color: var(--mut); font-size: 11.5px; line-height: 1.5; margin-top: 8px;
+  border-left: 3px solid var(--warn); padding-left: 10px;
+}
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 16px;
+  padding: 4px 11px; font-size: 12.5px; font-weight: 600;
+}
+.chip button { background: none; border: none; color: var(--mut); cursor: pointer; font-size: 14px; padding: 0; }
+.chip button:hover { color: var(--bad); }
+
+footer {
+  margin-top: 40px; color: var(--mut); font-size: 11.5px; line-height: 1.6;
+  border-top: 1px solid var(--line); padding-top: 14px;
+}
+
+/* ---- ficha de entidad ---- */
+.enthead { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.enthead img {
+  width: 64px; height: 64px; object-fit: contain; background: #fff;
+  border-radius: 10px; padding: 4px;
+}
+.enthead h1 { font-size: 20px; margin: 0; }
+.enthead .sub { color: var(--mut); font-size: 13px; margin-top: 3px; }
+.grptag {
+  display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+}
+.grptag.publico { background: #1c3a5e; color: #7cc0ff; }
+.grptag.privado { background: #14402f; color: #5fe0b0; }
+.grptag.financiera { background: #46351a; color: #ffce7a; }
+
+.balance-l0 { font-weight: 700; }
+.balance-l1 { padding-left: 22px; }
+.balance-l2 { padding-left: 40px; color: var(--mut); }
+.balance-l3 { padding-left: 58px; color: var(--mut); }
+
+.resena p { color: var(--txt); font-size: 13px; line-height: 1.6; margin: 6px 0; }
+
+h1.pagetitle { font-size: 20px; margin: 4px 0 2px; }
+.pagesub { color: var(--mut); font-size: 13px; margin-bottom: 8px; }
+
+.loading { color: var(--mut); padding: 60px 0; text-align: center; }

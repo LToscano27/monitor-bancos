@@ -1,0 +1,41 @@
+name: Actualizar datos BCRA
+
+on:
+  schedule:
+    # El BCRA publica con ~3 meses de rezago y sin fecha fija: chequeamos dos veces
+    # por semana (lunes y jueves, 12:00 UTC). update.py es idempotente: si no hay
+    # período nuevo termina sin tocar nada.
+    - cron: "0 12 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - run: pip install -r pipeline/requirements.txt
+
+      - name: Detectar y procesar períodos nuevos
+        id: update
+        run: |
+          python pipeline/update.py | tee update.log
+          echo "new_periods=$(grep -oP '(?<=^NEW_PERIODS=).*' update.log | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Commitear datos nuevos
+        if: steps.update.outputs.new_periods != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ web/public/logos/
+          git commit -m "data: período(s) ${{ steps.update.outputs.new_periods }} [bot]"
+          git push
