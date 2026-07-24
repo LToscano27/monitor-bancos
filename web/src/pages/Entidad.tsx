@@ -157,7 +157,13 @@ export default function Entidad() {
               <h3>Historia</h3>
               <div className="cs">Reseña oficial (BCRA, Información Histórica)</div>
               <div className="resena" style={{ maxHeight: 460, overflow: "auto" }}>
-                {meta.resena.map((p, i) => <p key={i}>{p}</p>)}
+                {meta.resena.map((p, i) =>
+                  p.startsWith("— ") ? (
+                    <p key={i} style={{ color: "var(--acc)", fontWeight: 650, marginTop: 12 }}>{p}</p>
+                  ) : (
+                    <p key={i}>{p}</p>
+                  ),
+                )}
               </div>
             </div>
           )}

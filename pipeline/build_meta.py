@@ -55,8 +55,18 @@ def parse_balres(path: Path) -> list[dict]:
 
 
 def parse_resena(path: Path) -> list[str]:
-    lines = bcra.read_lines(path)
-    return [ln.strip() for ln in lines[1:] if ln.strip()]  # línea 1 = header TSV
+    """Un archivo puede traer varios bloques (código reutilizado o renombres); cada bloque
+    abre con una línea-header TSV `"code"\t"nombre"\t...\t"estado"`. Los headers se
+    convierten en títulos de sección y el resto queda como párrafos."""
+    out: list[str] = []
+    for ln in bcra.read_lines(path):
+        if ln.startswith('"') and "\t" in ln:
+            fields = split_tsv(ln)
+            if len(fields) >= 2 and fields[1]:
+                out.append(f"— {fields[1]} —")
+        elif ln.strip():
+            out.append(ln.strip())
+    return out
 
 
 def build(period: str) -> int:
@@ -69,14 +79,16 @@ def build(period: str) -> int:
         nomina = load_nomina(root)
         entint = load_entint(root)
 
-        # reseñas: archivos "{code}{Nombre}.txt"
-        resenas: dict[str, Path] = {}
-        activas = bcra.find_file(root, "Info_Hist", "Activas")
-        if activas and activas.is_dir():
-            for f in activas.iterdir():
-                m = re.match(r"^(\d{5})", f.name)
-                if m:
-                    resenas[m.group(1)] = f
+        # reseñas: archivos "{code}{Nombre}.txt"; en Bajas puede haber varios por código
+        resenas: dict[str, list[Path]] = {}
+        bajas: dict[str, list[Path]] = {}
+        for dirname, dest in (("Activas", resenas), ("Bajas", bajas)):
+            d = bcra.find_file(root, "Info_Hist", dirname)
+            if d and d.is_dir():
+                for f in sorted(d.iterdir()):
+                    m = re.match(r"^(\d{5})", f.name)
+                    if m:
+                        dest.setdefault(m.group(1), []).append(f)
 
         logos: dict[str, Path] = {}
         logos_dir = bcra.find_file(root, "Entfin", "Logos")
@@ -101,8 +113,8 @@ def build(period: str) -> int:
                 "logo": None,
                 "period": period,
             }
-            if code in resenas:
-                meta["resena"] = parse_resena(resenas[code])
+            for f in resenas.get(code, []):
+                meta["resena"].extend(parse_resena(f))
             balres = bcra.find_file(root, "Entfin", "Tec_Cont", "balres", f"{code}.txt")
             if balres:
                 meta["balance"] = parse_balres(balres)
@@ -110,6 +122,25 @@ def build(period: str) -> int:
                 dest = LOGOS_DIR / f"{code}{logos[code].suffix.lower()}"
                 shutil.copyfile(logos[code], dest)
                 meta["logo"] = dest.name
+            with open(DATA_DIR / "meta" / f"{code}.json", "w", encoding="utf-8") as f:
+                json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
+            n += 1
+
+        # entidades dadas de baja: solo reseña (sirven para las fichas históricas)
+        for code, files in bajas.items():
+            if code in nomina:
+                continue
+            resena: list[str] = []
+            nombre = code
+            for f in files:
+                parsed = parse_resena(f)
+                resena.extend(parsed)
+                for ln in parsed:
+                    if ln.startswith("— ") and ln.endswith(" —"):
+                        nombre = ln[2:-2]
+            meta = {"code": code, "nombre": nombre, "alias": "", "grupo": None,
+                    "resena": resena, "balance": [], "logo": None, "period": period,
+                    "baja": True}
             with open(DATA_DIR / "meta" / f"{code}.json", "w", encoding="utf-8") as f:
                 json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
             n += 1
