@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+web/dist/
+
+# Caché local de dumps crudos del BCRA (viven en %LOCALAPPDATA%\bcra-raw-cache,
+# pero por si alguien apunta la caché acá)
+.cache/
+*.7z
+
+# Editor / OS
+.DS_Store
+Thumbs.db

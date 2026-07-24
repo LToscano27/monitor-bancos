@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor Sistema Financiero Argentino</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171e2e; --panel2:#1e2739; --line:#2a3550;
+    --txt:#e8edf6; --mut:#8a97b2; --acc:#4da3ff; --acc2:#33d69f;
+    --warn:#ffb454; --bad:#ff6b6b; --good:#33d69f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:6px}
+  h1{font-size:22px;margin:0;font-weight:650;letter-spacing:.2px}
+  .sub{color:var(--mut);font-size:13px}
+  .badge{background:var(--panel2);border:1px solid var(--line);border-radius:20px;
+    padding:5px 13px;color:var(--acc);font-weight:600;font-size:13px}
+  .note{color:var(--mut);font-size:11.5px;margin-top:2px}
+  section{margin-top:26px}
+  .stitle{font-size:12px;text-transform:uppercase;letter-spacing:1.3px;color:var(--mut);
+    margin:0 0 12px;font-weight:600}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px}
+  .kpi .l{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.6px}
+  .kpi .v{font-size:22px;font-weight:680;margin-top:5px;line-height:1.1}
+  .kpi .u{color:var(--mut);font-size:11px;margin-top:3px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .card h3{margin:0 0 4px;font-size:14px;font-weight:620}
+  .card .cs{color:var(--mut);font-size:11.5px;margin-bottom:10px}
+  select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600}
+  .chartbox{position:relative;height:360px}
+  .chartbox.sm{height:300px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td.n,th.n{text-align:left}
+  tbody tr:hover{background:var(--panel2)}
+  .rk{color:var(--mut);width:26px}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  footer{margin-top:34px;color:var(--mut);font-size:11.5px;line-height:1.6;
+    border-top:1px solid var(--line);padding-top:14px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Monitor del Sistema Financiero Argentino</h1>
+      <div class="sub">Bancos y compañías financieras · datos oficiales BCRA</div>
+    </div>
+    <div style="text-align:right">
+      <span class="badge" id="periodo">—</span>
+      <div class="note">Prototipo · 1 período. Con el backfill 2011→2026 se agregan las series.</div>
+    </div>
+  </header>
+
+  <section>
+    <p class="stitle">Sistema financiero — totales</p>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section>
+    <div class="grid2">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><h3>Ranking de entidades</h3><div class="cs">Top 15 · ordená por el indicador que quieras</div></div>
+          <select id="metric"></select>
+        </div>
+        <div class="chartbox"><canvas id="rankChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Por grupo institucional</h3>
+        <div class="cs">Participación en el activo del sistema</div>
+        <div class="chartbox"><canvas id="grpChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="grid2">
+      <div class="card">
+        <h3>Grupos — indicadores comparados</h3>
+        <div class="cs">Ratios ponderados calculados por el BCRA</div>
+        <table id="grpTable"></table>
+      </div>
+      <div class="card">
+        <h3 id="tblTitle">Detalle</h3>
+        <div class="cs" id="tblSub"></div>
+        <div style="max-height:360px;overflow:auto"><table id="rankTable"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script id="payload" type="application/json">{"fecha":"202604","entidades":[{"code":"00007","nombre":"BANCO DE GALICIA Y BUENOS AIRES S.A.","Activo":36704435926.0,"Prestamos":18659482087.0,"Depositos":25182187158.0,"PatrimonioNeto":6897643037.0,"Personal":6025.0,"C1":4.26,"A9":8.09,"R1":0.25,"Rg1":0.04,"L1":27.36,"E4":4142.99},{"code":"00011","nombre":"BANCO DE LA NACION ARGENTINA","Activo":74284768306.0,"Prestamos":29463122780.0,"Depositos":47519207998.0,"PatrimonioNeto":23577380761.0,"Personal":15282.0,"C1":2.14,"A9":5.36,"R1":6.41,"Rg1":1.94,"L1":13.72,"E4":3083.91},{"code":"00014","nombre":"BANCO DE LA PROVINCIA DE BUENOS AIRES","Activo":21501874551.0,"Prestamos":10096588306.0,"Depositos":15292442871.0,"PatrimonioNeto":4582716077.0,"Personal":10041.0,"C1":3.68,"A9":10.43,"R1":2.85,"Rg1":0.59,"L1":22.26,"E4":1513.76},{"code":"00015","nombre":"INDUSTRIAL AND COMMERCIAL BANK OF CHINA (ARGENTINA) S.A.U.","Activo":13688979385.0,"Prestamos":6622452371.0,"Depositos":7265509086.0,"PatrimonioNeto":2506964403.0,"Personal":3416.0,"C1":4.14,"A9":3.72,"R1":7.96,"Rg1":1.42,"L1":40.35,"E4":2111.04},{"code":"00016","nombre":"CITIBANK N.A.","Activo":6230382039.0,"Prestamos":1124939758.0,"Depositos":2890185825.0,"PatrimonioNeto":2240146819.0,"Personal":1059.0,"C1":1.58,"A9":0.0,"R1":7.4,"Rg1":2.92,"L1":121.01,"E4":2726.74},{"code":"00017","nombre":"BANCO BBVA ARGENTINA S.A.","Activo":24989262501.0,"Prestamos":13748837305.0,"Depositos":17405255358.0,"PatrimonioNeto":4032959030.0,"Personal":6409.0,"C1":5.11,"A9":6.45,"R1":9.65,"Rg1":1.44,"L1":26.86,"E4":2689.69},{"code":"00020","nombre":"BANCO DE LA PROVINCIA DE CORDOBA S.A.","Activo":6361447144.0,"Prestamos":3108137522.0,"Depositos":4725506975.0,"PatrimonioNeto":907787471.0,"Personal":1754.0,"C1":5.79,"A9":8.83,"R1":-5.19,"Rg1":-0.71,"L1":31.16,"E4":2673.13},{"code":"00027","nombre":"BANCO SUPERVIELLE S.A.","Activo":7671696283.0,"Prestamos":3687515550.0,"Depositos":5704942616.0,"PatrimonioNeto":827409133.0,"Personal":2699.0,"C1":8.07,"A9":5.87,"R1":-15.94,"Rg1":-1.81,"L1":30.68,"E4":2102.55},{"code":"00029","nombre":"BANCO DE LA CIUDAD DE BUENOS AIRES","Activo":8752142631.0,"Prestamos":3238839737.0,"Depositos":5807438053.0,"PatrimonioNeto":2219635484.0,"Personal":2299.0,"C1":2.91,"A9":4.5,"R1":6.64,"Rg1":1.49,"L1":23.02,"E4":2515.47},{"code":"00034","nombre":"BANCO PATAGONIA S.A.","Activo":9187152991.0,"Prestamos":3796250953.0,"Depositos":6323285404.0,"PatrimonioNeto":1909272995.0,"Personal":2814.0,"C1":3.77,"A9":3.09,"R1":7.09,"Rg1":1.4,"L1":30.39,"E4":2232.45},{"code":"00044","nombre":"BANCO HIPOTECARIO S.A.","Activo":3396272589.0,"Prestamos":1194570868.0,"Depositos":2303611322.0,"PatrimonioNeto":642226363.0,"Personal":1289.0,"C1":4.14,"A9":9.25,"R1":4.21,"Rg1":0.73,"L1":44.49,"E4":1770.17},{"code":"00045","nombre":"BANCO DE SAN JUAN S.A.","Activo":1308449171.0,"Prestamos":454648448.0,"Depositos":924083656.0,"PatrimonioNeto":282143351.0,"Personal":372.0,"C1":3.63,"A9":4.5,"R1":6.18,"Rg1":1.25,"L1":24.19,"E4":2471.5},{"code":"00065","nombre":"BANCO MUNICIPAL DE ROSARIO","Activo":569603218.0,"Prestamos":261691835.0,"Depositos":390248212.0,"PatrimonioNeto":126329074.0,"Personal":399.0,"C1":3.51,"A9":4.51,"R1":-0.21,"Rg1":-0.05,"L1":23.59,"E4":972.96},{"code":"00072","nombre":"BANCO SANTANDER ARGENTINA S.A.","Activo":27021234036.0,"Prestamos":13002934955.0,"Depositos":18360972345.0,"PatrimonioNeto":5164580010.0,"Personal":5450.0,"C1":4.19,"A9":10.16,"R1":10.36,"Rg1":1.95,"L1":27.73,"E4":3349.52},{"code":"00083","nombre":"BANCO DEL CHUBUT S.A.","Activo":952450700.0,"Prestamos":555255910.0,"Depositos":574762718.0,"PatrimonioNeto":310882579.0,"Personal":738.0,"C1":2.0,"A9":10.77,"R1":-0.2,"Rg1":-0.06,"L1":13.57,"E4":775.17},{"code":"00086","nombre":"BANCO DE SANTA CRUZ S.A.","Activo":746704452.0,"Prestamos":330439826.0,"Depositos":552523394.0,"PatrimonioNeto":132517117.0,"Personal":257.0,"C1":4.63,"A9":6.74,"R1":21.52,"Rg1":3.72,"L1":30.26,"E4":2133.09},{"code":"00093","nombre":"BANCO DE LA PAMPA SA","Activo":1530221345.0,"Prestamos":573546640.0,"Depositos":944521543.0,"PatrimonioNeto":468497510.0,"Personal":714.0,"C1":2.19,"A9":6.77,"R1":1.53,"Rg1":0.44,"L1":17.57,"E4":1316.56},{"code":"00094","nombre":"BANCO DE CORRIENTES S.A.","Activo":986930959.0,"Prestamos":446730471.0,"Depositos":537857400.0,"PatrimonioNeto":313830207.0,"Personal":811.0,"C1":1.92,"A9":12.33,"R1":-9.18,"Rg1":-2.73,"L1":13.0,"E4":660.27},{"code":"00097","nombre":"BANCO PROVINCIA DEL NEUQUÉN SOCIEDAD ANÓNIMA","Activo":2041918576.0,"Prestamos":730263749.0,"Depositos":1108780117.0,"PatrimonioNeto":737333781.0,"Personal":1145.0,"C1":1.63,"A9":6.92,"R1":15.54,"Rg1":5.05,"L1":8.23,"E4":964.65},{"code":"00131","nombre":"BANK OF CHINA LIMITED SUCURSAL BUENOS AIRES","Activo":83057971.0,"Prestamos":0.0,"Depositos":35615724.0,"PatrimonioNeto":15198125.0,"Personal":33.0,"C1":3.54,"A9":0.0,"R1":20.7,"Rg1":4.7,"L1":100.09,"E4":1070.34},{"code":"00143","nombre":"BRUBANK S.A.U.","Activo":331944866.0,"Prestamos":76217487.0,"Depositos":270932314.0,"PatrimonioNeto":31579083.0,"Personal":320.0,"C1":9.5,"A9":19.06,"R1":33.01,"Rg1":2.6,"L1":39.23,"E4":845.52},{"code":"00147","nombre":"BIBANK S.A.","Activo":165693757.0,"Prestamos":47833450.0,"Depositos":75143029.0,"PatrimonioNeto":47596228.0,"Personal":98.0,"C1":1.99,"A9":3.68,"R1":-13.77,"Rg1":-2.34,"L1":68.96,"E4":758.65},{"code":"00165","nombre":"JPMORGAN CHASE BANK, NATIONAL ASSOCIATION (SUCURSAL BUENOS A","Activo":878263687.0,"Prestamos":39277309.0,"Depositos":320073464.0,"PatrimonioNeto":486900817.0,"Personal":173.0,"C1":0.42,"A9":0.0,"R1":20.17,"Rg1":10.49,"L1":194.07,"E4":1844.86},{"code":"00191","nombre":"BANCO CREDICOOP COOPERATIVO LIMITADO","Activo":9953640512.0,"Prestamos":2341214634.0,"Depositos":6005505403.0,"PatrimonioNeto":3551033886.0,"Personal":4519.0,"C1":1.8,"A9":4.0,"R1":-3.37,"Rg1":-1.15,"L1":17.8,"E4":1318.59},{"code":"00198","nombre":"BANCO DE VALORES S.A.","Activo":2970576575.0,"Prestamos":697092195.0,"Depositos":2115173744.0,"PatrimonioNeto":431534322.0,"Personal":282.0,"C1":5.52,"A9":0.03,"R1":17.92,"Rg1":2.77,"L1":44.79,"E4":7460.81},{"code":"00247","nombre":"BANCO ROELA S.A.","Activo":222563096.0,"Prestamos":15344125.0,"Depositos":79411175.0,"PatrimonioNeto":94560023.0,"Personal":184.0,"C1":1.29,"A9":1.29,"R1":18.45,"Rg1":8.53,"L1":8.71,"E4":431.24},{"code":"00254","nombre":"BANCO MARIVA S.A.","Activo":880717333.0,"Prestamos":258959295.0,"Depositos":406043886.0,"PatrimonioNeto":192654996.0,"Personal":219.0,"C1":3.13,"A9":0.44,"R1":10.92,"Rg1":2.25,"L1":52.15,"E4":1837.02},{"code":"00266","nombre":"BNP PARIBAS","Activo":209579028.0,"Prestamos":17088434.0,"Depositos":56304338.0,"PatrimonioNeto":110739023.0,"Personal":80.0,"C1":0.69,"A9":0.0,"R1":4.79,"Rg1":2.38,"L1":132.13,"E4":700.42},{"code":"00268","nombre":"BANCO PROVINCIA DE TIERRA DEL FUEGO","Activo":425450271.0,"Prestamos":185857625.0,"Depositos":153008378.0,"PatrimonioNeto":209025907.0,"Personal":323.0,"C1":0.88,"A9":8.89,"R1":-0.18,"Rg1":-0.08,"L1":11.56,"E4":471.94},{"code":"00269","nombre":"BANCO DE LA REPUBLICA ORIENTAL DEL URUGUAY","Activo":13076686.0,"Prestamos":994925.0,"Depositos":3909869.0,"PatrimonioNeto":8238335.0,"Personal":22.0,"C1":0.59,"A9":0.18,"R1":-65.67,"Rg1":-39.56,"L1":115.0,"E4":177.68},{"code":"00277","nombre":"BANCO SAENZ S.A.","Activo":82328229.0,"Prestamos":30637854.0,"Depositos":52823213.0,"PatrimonioNeto":25367975.0,"Personal":60.0,"C1":2.16,"A9":37.68,"R1":-20.6,"Rg1":-6.5,"L1":10.37,"E4":871.24},{"code":"00281","nombre":"BANCO MERIDIAN S.A.","Activo":60068287.0,"Prestamos":13435258.0,"Depositos":32762631.0,"PatrimonioNeto":14357925.0,"Personal":75.0,"C1":2.82,"A9":2.28,"R1":-14.45,"Rg1":-3.96,"L1":37.78,"E4":433.85},{"code":"00285","nombre":"BANCO MACRO S.A.","Activo":24081689162.0,"Prestamos":10843140204.0,"Depositos":14256403740.0,"PatrimonioNeto":5914854677.0,"Personal":8012.0,"C1":3.07,"A9":5.61,"R1":7.23,"Rg1":1.78,"L1":39.66,"E4":1767.63},{"code":"00299","nombre":"BANCO COMAFI SOCIEDAD ANONIMA","Activo":3672931732.0,"Prestamos":1508927183.0,"Depositos":2520827761.0,"PatrimonioNeto":431737241.0,"Personal":1380.0,"C1":6.95,"A9":2.86,"R1":4.23,"Rg1":0.52,"L1":44.65,"E4":1811.23},{"code":"00300","nombre":"BANCO DE INVERSION Y COMERCIO EXTERIOR S.A.","Activo":1865264032.0,"Prestamos":624311208.0,"Depositos":858513179.0,"PatrimonioNeto":759399248.0,"Personal":340.0,"C1":1.43,"A9":1.4,"R1":4.28,"Rg1":1.65,"L1":10.35,"E4":2493.05},{"code":"00301","nombre":"BANCO PIANO S.A.","Activo":385215472.0,"Prestamos":135716259.0,"Depositos":251216533.0,"PatrimonioNeto":85394373.0,"Personal":527.0,"C1":3.45,"A9":6.31,"R1":6.56,"Rg1":1.33,"L1":33.39,"E4":475.64},{"code":"00305","nombre":"BANCO JULIO SOCIEDAD ANONIMA","Activo":61309149.0,"Prestamos":24775031.0,"Depositos":37185265.0,"PatrimonioNeto":16173779.0,"Personal":83.0,"C1":2.55,"A9":13.42,"R1":-7.03,"Rg1":-2.0,"L1":46.65,"E4":444.14},{"code":"00309","nombre":"BANCO RIOJA SOCIEDAD ANONIMA UNIPERSONAL","Activo":302404176.0,"Prestamos":131414155.0,"Depositos":195745704.0,"PatrimonioNeto":91691436.0,"Personal":0.0,"C1":2.3,"A9":22.81,"R1":-8.18,"Rg1":-2.46,"L1":6.15,"E4":562.89},{"code":"00310","nombre":"BANCO DEL SOL S.A.","Activo":703730232.0,"Prestamos":437993172.0,"Depositos":561259120.0,"PatrimonioNeto":105895167.0,"Personal":285.0,"C1":5.62,"A9":11.09,"R1":-10.79,"Rg1":-1.86,"L1":27.87,"E4":1947.47},{"code":"00311","nombre":"NUEVO BANCO DEL CHACO S. A.","Activo":1286187841.0,"Prestamos":592625795.0,"Depositos":754873262.0,"PatrimonioNeto":338951854.0,"Personal":703.0,"C1":2.79,"A9":10.62,"R1":10.0,"Rg1":2.6,"L1":17.18,"E4":1066.72},{"code":"00312","nombre":"BANCO VOII S.A.","Activo":247890024.0,"Prestamos":93001373.0,"Depositos":203319230.0,"PatrimonioNeto":21115881.0,"Personal":67.0,"C1":10.29,"A9":5.73,"R1":-7.49,"Rg1":-0.64,"L1":35.33,"E4":3005.18},{"code":"00315","nombre":"BANCO DE FORMOSA S.A.","Activo":593576250.0,"Prestamos":236379717.0,"Depositos":293436590.0,"PatrimonioNeto":206557276.0,"Personal":531.0,"C1":1.83,"A9":5.34,"R1":4.47,"Rg1":1.23,"L1":53.1,"E4":551.61},{"code":"00319","nombre":"BANCO CMF S.A.","Activo":991196074.0,"Prestamos":313824101.0,"Depositos":492777694.0,"PatrimonioNeto":273527363.0,"Personal":198.0,"C1":2.6,"A9":2.28,"R1":15.98,"Rg1":3.98,"L1":72.69,"E4":2484.14},{"code":"00321","nombre":"BANCO DE SANTIAGO DEL ESTERO S.A.","Activo":1713616666.0,"Prestamos":507075624.0,"Depositos":697442401.0,"PatrimonioNeto":837357324.0,"Personal":631.0,"C1":0.88,"A9":9.73,"R1":12.97,"Rg1":5.5,"L1":38.56,"E4":1100.46},{"code":"00322","nombre":"BANCO INDUSTRIAL S.A.","Activo":3549090839.0,"Prestamos":978226791.0,"Depositos":2776919578.0,"PatrimonioNeto":497661144.0,"Personal":705.0,"C1":5.98,"A9":1.89,"R1":18.07,"Rg1":2.29,"L1":50.4,"E4":3909.43},{"code":"00330","nombre":"NUEVO BANCO DE SANTA FE SOCIEDAD ANONIMA","Activo":4575635448.0,"Prestamos":1902887318.0,"Depositos":3680502245.0,"PatrimonioNeto":536784263.0,"Personal":1453.0,"C1":7.4,"A9":4.59,"R1":2.08,"Rg1":0.27,"L1":38.41,"E4":2520.45},{"code":"00331","nombre":"BANCO CETELEM ARGENTINA S.A.","Activo":6797622.0,"Prestamos":4581115.0,"Depositos":0.0,"PatrimonioNeto":6413462.0,"Personal":5.0,"C1":0.06,"A9":0.0,"R1":-90.81,"Rg1":-84.4,"L1":0.0,"E4":0.0},{"code":"00332","nombre":"BANCO DE SERVICIOS FINANCIEROS CARREFOUR SAU","Activo":400656939.0,"Prestamos":333606516.0,"Depositos":0.0,"PatrimonioNeto":77849705.0,"Personal":170.0,"C1":4.15,"A9":50.45,"R1":-20.75,"Rg1":-3.47,"L1":41.84,"E4":0.0},{"code":"00338","nombre":"BANCO DE SERVICIOS Y TRANSACCIONES SAU","Activo":694154205.0,"Prestamos":310540599.0,"Depositos":373727708.0,"PatrimonioNeto":146582817.0,"Personal":148.0,"C1":3.3,"A9":1.88,"R1":1.92,"Rg1":0.47,"L1":49.83,"E4":2511.39},{"code":"00339","nombre":"RCI BANQUE S.A.","Activo":153467036.0,"Prestamos":119951275.0,"Depositos":4893949.0,"PatrimonioNeto":67393683.0,"Personal":19.0,"C1":1.28,"A9":0.0,"R1":17.98,"Rg1":4.39,"L1":42.72,"E4":257.58},{"code":"00340","nombre":"BACS BANCO DE CREDITO Y SECURITIZACION S.A.","Activo":246916382.0,"Prestamos":140207466.0,"Depositos":168511124.0,"PatrimonioNeto":39365544.0,"Personal":70.0,"C1":5.11,"A9":2.11,"R1":3.27,"Rg1":0.43,"L1":32.61,"E4":2382.4},{"code":"00341","nombre":"BANCO MASVENTAS S.A.","Activo":41689970.0,"Prestamos":21818681.0,"Depositos":32855088.0,"PatrimonioNeto":5602325.0,"Personal":0.0,"C1":6.44,"A9":9.48,"R1":-82.44,"Rg1":-19.42,"L1":13.21,"E4":348.99},{"code":"00384","nombre":"UALA BANK S.A.U.","Activo":636749099.0,"Prestamos":197300994.0,"Depositos":538456715.0,"PatrimonioNeto":64411340.0,"Personal":162.0,"C1":8.84,"A9":22.07,"R1":-501.32,"Rg1":-21.15,"L1":10.11,"E4":3261.28},{"code":"00386","nombre":"NUEVO BANCO DE ENTRE RÍOS S.A.","Activo":1857459830.0,"Prestamos":772779164.0,"Depositos":1211994101.0,"PatrimonioNeto":465083658.0,"Personal":703.0,"C1":2.98,"A9":4.35,"R1":10.52,"Rg1":2.44,"L1":24.29,"E4":1713.67},{"code":"00389","nombre":"BANCO COLUMBIA S.A.","Activo":597915685.0,"Prestamos":221401517.0,"Depositos":271117054.0,"PatrimonioNeto":36822022.0,"Personal":657.0,"C1":10.4,"A9":21.41,"R1":-109.31,"Rg1":-11.91,"L1":13.48,"E4":408.89},{"code":"00426","nombre":"BANCO BICA S.A.","Activo":291093662.0,"Prestamos":177590037.0,"Depositos":220909554.0,"PatrimonioNeto":52241840.0,"Personal":189.0,"C1":4.57,"A9":4.48,"R1":5.9,"Rg1":1.14,"L1":21.43,"E4":1160.79},{"code":"00431","nombre":"BANCO COINAG S.A.","Activo":467021926.0,"Prestamos":143488163.0,"Depositos":401126242.0,"PatrimonioNeto":52457095.0,"Personal":190.0,"C1":7.89,"A9":5.22,"R1":0.1,"Rg1":0.01,"L1":49.53,"E4":2104.83},{"code":"00432","nombre":"BANCO DE COMERCIO S.A.","Activo":137042464.0,"Prestamos":69517416.0,"Depositos":45697731.0,"PatrimonioNeto":43007737.0,"Personal":118.0,"C1":2.09,"A9":2.86,"R1":17.72,"Rg1":4.83,"L1":37.16,"E4":385.75},{"code":"00435","nombre":"BANCO SUCREDITO REGIONAL S.A.U.","Activo":9494635.0,"Prestamos":4159799.0,"Depositos":861023.0,"PatrimonioNeto":8035922.0,"Personal":14.0,"C1":0.18,"A9":24.76,"R1":-45.4,"Rg1":-37.47,"L1":42.29,"E4":60.85},{"code":"00448","nombre":"BANCO DINO S.A.","Activo":65669208.0,"Prestamos":30239124.0,"Depositos":29406773.0,"PatrimonioNeto":29755140.0,"Personal":31.0,"C1":1.21,"A9":5.07,"R1":1.34,"Rg1":0.44,"L1":25.2,"E4":942.62},{"code":"44077","nombre":"COMPAÑIA FINANCIERA ARGENTINA S.A.","Activo":104851053.0,"Prestamos":45429662.0,"Depositos":79208195.0,"PatrimonioNeto":8914113.0,"Personal":279.0,"C1":10.76,"A9":45.78,"R1":-91.6,"Rg1":-9.07,"L1":14.45,"E4":283.48},{"code":"44088","nombre":"VOLKSWAGEN FINANCIAL SERVICES COMPAÑIA FINANCIERA S.A.","Activo":543887663.0,"Prestamos":501531282.0,"Depositos":6676288.0,"PatrimonioNeto":108026224.0,"Personal":49.0,"C1":4.03,"A9":0.72,"R1":18.79,"Rg1":3.36,"L1":8.67,"E4":133.92},{"code":"44092","nombre":"FCA COMPAÑIA FINANCIERA S.A.","Activo":439396424.0,"Prestamos":353720903.0,"Depositos":11218891.0,"PatrimonioNeto":76988588.0,"Personal":34.0,"C1":4.71,"A9":2.39,"R1":36.81,"Rg1":5.16,"L1":10.53,"E4":232.35},{"code":"44093","nombre":"GPAT COMPAÑIA FINANCIERA S.A.U.","Activo":367168713.0,"Prestamos":306556840.0,"Depositos":0.0,"PatrimonioNeto":86713856.0,"Personal":48.0,"C1":3.23,"A9":3.29,"R1":10.57,"Rg1":1.53,"L1":0.0,"E4":0.0},{"code":"44094","nombre":"MERCEDES-BENZ COMPAÑÍA FINANCIERA ARGENTINA S.A.","Activo":186894577.0,"Prestamos":89747490.0,"Depositos":2000.0,"PatrimonioNeto":35630562.0,"Personal":47.0,"C1":4.25,"A9":5.65,"R1":19.24,"Rg1":3.6,"L1":280264.8,"E4":0.04},{"code":"44095","nombre":"ROMBO COMPAÑÍA FINANCIERA S.A.","Activo":333264614.0,"Prestamos":298842540.0,"Depositos":0.0,"PatrimonioNeto":66983262.0,"Personal":30.0,"C1":3.98,"A9":2.22,"R1":34.88,"Rg1":6.22,"L1":249.25,"E4":0.0},{"code":"44096","nombre":"JOHN DEERE CREDIT COMPAÑÍA FINANCIERA S.A.","Activo":809341674.0,"Prestamos":665969059.0,"Depositos":0.0,"PatrimonioNeto":58940165.0,"Personal":73.0,"C1":12.73,"A9":6.04,"R1":17.45,"Rg1":1.16,"L1":0.0,"E4":0.0},{"code":"44098","nombre":"PSA FINANCE ARGENTINA COMPAÑÍA FINANCIERA S.A.","Activo":362409156.0,"Prestamos":354210312.0,"Depositos":0.0,"PatrimonioNeto":72496372.0,"Personal":41.0,"C1":4.0,"A9":2.35,"R1":41.66,"Rg1":6.81,"L1":0.0,"E4":0.0},{"code":"44099","nombre":"TOYOTA COMPAÑÍA FINANCIERA DE ARGENTINA S.A.","Activo":253901472.0,"Prestamos":195310395.0,"Depositos":10111582.0,"PatrimonioNeto":50672881.0,"Personal":61.0,"C1":4.01,"A9":2.94,"R1":10.59,"Rg1":2.24,"L1":11.71,"E4":164.04},{"code":"45030","nombre":"NARANJA DIGITAL COMPAÑÍA FINANCIERA S.A.U.","Activo":2657545280.0,"Prestamos":976780120.0,"Depositos":2118648883.0,"PatrimonioNeto":342579246.0,"Personal":103.0,"C1":5.72,"A9":15.2,"R1":56.02,"Rg1":5.21,"L1":11.31,"E4":20480.24},{"code":"45056","nombre":"MONTEMAR COMPAÑIA FINANCIERA S.A.","Activo":143609317.0,"Prestamos":86379538.0,"Depositos":115008499.0,"PatrimonioNeto":14836107.0,"Personal":249.0,"C1":8.68,"A9":25.45,"R1":11.25,"Rg1":1.42,"L1":10.82,"E4":459.95},{"code":"45072","nombre":"REBA COMPAÑIA FINANCIERA S.A.","Activo":111497206.0,"Prestamos":57916610.0,"Depositos":94094381.0,"PatrimonioNeto":7029215.0,"Personal":164.0,"C1":14.29,"A9":20.75,"R1":-30.37,"Rg1":-1.89,"L1":27.31,"E4":569.44},{"code":"65203","nombre":"CRÉDITO REGIONAL COMPAÑÍA FINANCIERA S.A.U.","Activo":8590244.0,"Prestamos":4172113.0,"Depositos":4353013.0,"PatrimonioNeto":3777466.0,"Personal":81.0,"C1":1.27,"A9":40.66,"R1":-147.2,"Rg1":-66.48,"L1":7.09,"E4":53.31}],"agregados":{"AA000":{"code":"AA000","nombre":"SISTEMA FINANCIERO","Activo":320161110254.0,"Prestamos":139634248323.0,"Depositos":206739330315.0,"PatrimonioNeto":75244753220.0,"Personal":88450.0,"C1":3.19,"A9":6.79,"R1":5.67,"Rg1":1.28,"L1":27.52,"E4":2320.29},"AA100":{"code":"AA100","nombre":"BANCOS","Activo":313838752861.0,"Prestamos":135697681459.0,"Depositos":204300008583.0,"PatrimonioNeto":74311165163.0,"Personal":87191.0,"C1":3.16,"A9":6.76,"R1":5.18,"Rg1":1.18,"L1":27.63,"E4":2326.01},"AA110":{"code":"AA110","nombre":"BANCOS PÚBLICOS","Activo":121454240000.0,"Prestamos":50244765450.0,"Depositos":79156343000.0,"PatrimonioNeto":34850018665.0,"Personal":35426.0,"C1":2.46,"A9":6.78,"R1":5.72,"Rg1":1.56,"L1":17.23,"E4":2218.03},"AA120":{"code":"AA120","nombre":"BANCOS PRIVADOS","Activo":192384512861.0,"Prestamos":85452916009.0,"Depositos":125143665583.0,"PatrimonioNeto":39461146498.0,"Personal":51765.0,"C1":3.77,"A9":6.75,"R1":5.12,"Rg1":1.02,"L1":34.19,"E4":2399.9},"AA121":{"code":"AA121","nombre":"BANCOS LOCALES DE CAPITAL NACIONAL","Activo":109522602940.0,"Prestamos":46642001093.0,"Depositos":72477660221.0,"PatrimonioNeto":22834490091.0,"Personal":32115.0,"C1":3.72,"A9":6.46,"R1":1.92,"Rg1":0.39,"L1":33.0,"E4":2240.0},"AA123":{"code":"AA123","nombre":"BANCOS LOCALES DE CAPITAL EXTRANJERO","Activo":75294083474.0,"Prestamos":37508663215.0,"Depositos":49355022193.0,"PatrimonioNeto":13698039605.0,"Personal":18264.0,"C1":4.39,"A9":7.37,"R1":9.06,"Rg1":1.58,"L1":29.66,"E4":2682.13},"AA124":{"code":"AA124","nombre":"BANCOS SUCURSALES ENTIDADES FINANCIERAS DEL EXTERIOR","Activo":7567826447.0,"Prestamos":1302251701.0,"Depositos":3310983169.0,"PatrimonioNeto":2928616802.0,"Personal":1386.0,"C1":1.35,"A9":0.0,"R1":9.47,"Rg1":3.86,"L1":126.23,"E4":2385.96},"AA200":{"code":"AA200","nombre":"COMPAÑÍAS FINANCIERAS","Activo":6322357393.0,"Prestamos":3936566864.0,"Depositos":2439321732.0,"PatrimonioNeto":933588057.0,"Personal":1259.0,"C1":5.28,"A9":7.65,"R1":31.38,"Rg1":3.72,"L1":19.24,"E4":1924.82},"AA210":{"code":"AA210","nombre":"COMPAÑÍAS FINANCIERAS DE CAPITAL NACIONAL","Activo":3026093100.0,"Prestamos":1170678043.0,"Depositos":2411312971.0,"PatrimonioNeto":377136147.0,"Personal":876.0,"C1":5.77,"A9":17.74,"R1":41.77,"Rg1":3.94,"L1":12.08,"E4":2737.52},"AA220":{"code":"AA220","nombre":"COMPAÑÍAS FINANCIERAS  DE CAPITAL EXTRANJERO","Activo":3296264293.0,"Prestamos":2765888821.0,"Depositos":28008761.0,"PatrimonioNeto":556451910.0,"Personal":383.0,"C1":4.92,"A9":3.15,"R1":24.53,"Rg1":3.5,"L1":97.59,"E4":63.89},"AA910":{"code":"AA910","nombre":"10 PRIMEROS BANCOS PRIVADOS","Activo":164104108283.0,"Prestamos":75729655135.0,"Depositos":107074749180.0,"PatrimonioNeto":33581648253.0,"Personal":41856.0,"C1":3.81,"A9":6.75,"R1":4.8,"Rg1":0.96,"L1":32.59,"E4":2539.51}}}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('payload').textContent);
+const E = DATA.entidades, A = DATA.agregados;
+const S = A['AA000'];
+
+const meses={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio',
+ '07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+const f=DATA.fecha; document.getElementById('periodo').textContent=(meses[f.slice(4)]||f.slice(4))+' '+f.slice(0,4);
+function money(vk){
+  const p=vk*1000;
+  if(Math.abs(p)>=1e12) return '$'+(p/1e12).toLocaleString('es-AR',{maximumFractionDigits:1})+' B';
+  if(Math.abs(p)>=1e9)  return '$'+(p/1e9 ).toLocaleString('es-AR',{maximumFractionDigits:1})+' MM';
+  return '$'+(p/1e6).toLocaleString('es-AR',{maximumFractionDigits:0})+' M';
+}
+const pct=v=>v==null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2})+'%';
+const int=v=>v==null?'—':Math.round(v).toLocaleString('es-AR');
+
+const kpis=[
+ ['Activo total', money(S.Activo)],
+ ['Depósitos', money(S.Depositos)],
+ ['Préstamos', money(S.Prestamos)],
+ ['Patrimonio neto', money(S.PatrimonioNeto)],
+ ['Entidades', E.length+' ', 'bancos y financieras'],
+ ['Dotación de personal', int(S.Personal)],
+ ['ROE sistema', pct(S.R1)],
+ ['ROA sistema', pct(S.Rg1)],
+ ['Mora (cartera irregular)', pct(S.A9)],
+ ['Liquidez amplia', pct(S.L1)],
+];
+document.getElementById('kpis').innerHTML=kpis.map(k=>
+ `<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div>${k[2]?`<div class="u">${k[2]}</div>`:''}</div>`).join('');
+
+const METRICS=[
+ {k:'Activo',label:'Activo (tamaño)',fmt:money,share:true,desc:'higher'},
+ {k:'Depositos',label:'Depósitos',fmt:money,share:true,desc:'higher'},
+ {k:'Prestamos',label:'Préstamos',fmt:money,share:true,desc:'higher'},
+ {k:'PatrimonioNeto',label:'Patrimonio neto',fmt:money,share:true,desc:'higher'},
+ {k:'R1',label:'ROE — rentabilidad s/ patrimonio',fmt:pct,desc:'higher'},
+ {k:'Rg1',label:'ROA — rentabilidad s/ activo',fmt:pct,desc:'higher'},
+ {k:'A9',label:'Mora — cartera irregular',fmt:pct,desc:'lower'},
+ {k:'L1',label:'Liquidez amplia',fmt:pct,desc:'higher'},
+ {k:'C1',label:'Apalancamiento (veces)',fmt:v=>v==null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2}),desc:'higher'},
+ {k:'Personal',label:'Dotación de personal',fmt:int,desc:'higher'},
+];
+const sel=document.getElementById('metric');
+sel.innerHTML=METRICS.map((m,i)=>`<option value="${i}">${m.label}</option>`).join('');
+
+let rankChart, grpChart;
+const CSS=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function drawRank(mi){
+  const m=METRICS[mi];
+  let rows=E.filter(e=>e[m.k]!=null).slice();
+  rows.sort((a,b)=> m.desc==='lower' ? a[m.k]-b[m.k] : b[m.k]-a[m.k]);
+  rows=rows.slice(0,15);
+  const labels=rows.map(r=>shortName(r.nombre));
+  const vals=rows.map(r=>r[m.k]);
+  const ctx=document.getElementById('rankChart');
+  if(rankChart)rankChart.destroy();
+  rankChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data:vals,
+      backgroundColor:CSS('--acc'),borderRadius:4,barThickness:14}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{
+        const r=rows[c.dataIndex]; let s=m.fmt(r[m.k]);
+        if(m.share) s+=' · '+(100*r[m.k]/S[m.k]).toFixed(1)+'% del sistema';
+        return s;}}}},
+      scales:{x:{ticks:{color:CSS('--mut'),callback:v=>m.fmt(v)},grid:{color:CSS('--line')}},
+              y:{ticks:{color:CSS('--txt'),font:{size:11}},grid:{display:false}}}}});
+  document.getElementById('tblTitle').textContent='Ranking · '+m.label;
+  document.getElementById('tblSub').textContent=(m.desc==='lower'?'Menor es mejor':'Mayor es mejor')+' · top 15';
+  const sh=m.share;
+  let h='<thead><tr><th class="rk"></th><th class="n">Entidad</th><th>'+
+        (sh?'Monto':'Valor')+'</th>'+(sh?'<th>Share</th>':'')+'</tr></thead><tbody>';
+  rows.forEach((r,i)=>{h+=`<tr><td class="rk">${i+1}</td><td class="n">${shortName(r.nombre)}</td>`+
+    `<td>${m.fmt(r[m.k])}</td>`+(sh?`<td>${(100*r[m.k]/S[m.k]).toFixed(1)}%</td>`:'')+`</tr>`;});
+  document.getElementById('rankTable').innerHTML=h+'</tbody>';
+}
+sel.addEventListener('change',e=>drawRank(+e.target.value));
+
+function shortName(n){
+  return n.replace(/BANCO DE LA /i,'').replace(/BANCO /i,'').replace(/ S\.?A\.?U?\.?$/i,'')
+          .replace(/ SOCIEDAD ANONIMA.*/i,'').replace(/ COOPERATIVO.*/i,' (Credicoop)')
+          .replace(/ARGENTINA/i,'').replace(/\s+/g,' ').trim();
+}
+
+const GRP=['AA110','AA120','AA200']; // Públicos, Privados, Compañías financieras
+const NAME={AA110:'Públicos',AA120:'Privados',AA200:'Cías. financieras'};
+const grpRows=GRP.map(c=>A[c]).filter(Boolean);
+function drawGrp(){
+  const labels=GRP.map(c=>NAME[c]);
+  const vals=GRP.map(c=>100*A[c].Activo/S.Activo);
+  const ctx=document.getElementById('grpChart');
+  grpChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:vals,
+     backgroundColor:['#4da3ff','#33d69f','#8a97b2'],borderWidth:0}]},
+   options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+     plugins:{legend:{position:'right',labels:{color:CSS('--txt'),boxWidth:12,font:{size:12}}},
+       tooltip:{callbacks:{label:c=>c.label+': '+c.raw.toFixed(1)+'% del activo'}}}}});
+}
+(function(){
+  let h='<thead><tr><th class="n">Grupo</th><th>Share act.</th><th>ROE</th><th>ROA</th><th>Mora</th><th>Liquidez</th></tr></thead><tbody>';
+  ['AA000','AA110','AA120'].forEach(c=>{const g=A[c];if(!g)return;
+    const nm=c==='AA000'?'<b>SISTEMA</b>':NAME[c];
+    h+=`<tr><td class="n">${nm}</td><td>${(100*g.Activo/S.Activo).toFixed(1)}%</td>`+
+       `<td class="${g.R1>=0?'pos':'neg'}">${pct(g.R1)}</td><td>${pct(g.Rg1)}</td>`+
+       `<td>${pct(g.A9)}</td><td>${pct(g.L1)}</td></tr>`;});
+  document.getElementById('grpTable').innerHTML=h+'</tbody>';
+})();
+
+document.getElementById('foot').innerHTML=
+ 'Fuente: BCRA · Información de Entidades Financieras (directorio IEF, formato TXT). '+
+ 'Cifras monetarias en pesos corrientes. Ratios (ROE, ROA, mora, liquidez) ponderados según cálculo del BCRA. '+
+ 'Prototipo generado a partir del dump '+f+'. El siguiente paso es el backfill histórico (jul-2011 en adelante) para habilitar las series de evolución.';
+
+drawRank(0); drawGrp();
+</script>
+</body>
+</html>
