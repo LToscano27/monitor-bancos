@@ -72,6 +72,10 @@ METRICS = {
 # Métricas de la ficha/series por entidad (las 40 completas pesan poco, van todas).
 SERIES_KEYS = MODERN_KEYS
 
+# Entidades que no se ofrecen en los buscadores (dejaron de operar hace mucho y con muy
+# poca actividad; siguen en los períodos históricos, pero no como opción seleccionable).
+EXCLUDE_ENTITIES = {"00005"}  # The Royal Bank of Scotland N.V. (ex ABN AMRO), baja 2015
+
 
 def load_periods() -> list[dict]:
     files = sorted((DATA_DIR / "periods").glob("*.json"))
@@ -104,6 +108,8 @@ def build() -> dict:
     for i, p in enumerate(periods_data):
         for row in p["entidades"]:
             code = row["code"]
+            if code in EXCLUDE_ENTITIES:
+                continue
             if code not in ent_series:
                 ent_series[code] = {k: [None] * n for k in SERIES_KEYS}
                 ent_meta[code] = {"code": code, "nombre": row.get("nombre", ""),

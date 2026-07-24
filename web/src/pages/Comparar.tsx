@@ -13,7 +13,11 @@ const COMPARE_KEYS = [
 ];
 
 const DEFAULTS = ["00007", "00011"]; // Galicia y Nación como arranque ilustrativo
-const BENCH = ["AA000", "AA110", "AA120"] as const;
+const GROUP_OPTS = [
+  { code: "AA000", label: "Sistema financiero" },
+  { code: "AA120", label: "Bancos privados" },
+  { code: "AA110", label: "Bancos públicos" },
+];
 
 export default function Comparar() {
   const { index, system } = useCore();
@@ -64,20 +68,11 @@ export default function Comparar() {
       <div className="controls">
         <EntityPicker
           entities={index.entities}
+          groups={GROUP_OPTS}
           exclude={codes}
           onPick={(c) => codes.length < 6 && setCodes([...codes, c])}
-          placeholder="Agregar entidad al comparador…"
+          placeholder="Buscar entidad, o sistema/grupo como benchmark…"
         />
-        {BENCH.filter((g) => !codes.includes(g)).map((g) => (
-          <button
-            key={g}
-            className="ctl"
-            onClick={() => codes.length < 6 && setCodes([...codes, g])}
-            title="Agregar como benchmark"
-          >
-            + {GROUP_LABELS[g]}
-          </button>
-        ))}
       </div>
       <div className="chips" style={{ marginBottom: 14 }}>
         {codes.map((c, i) => (

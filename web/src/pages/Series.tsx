@@ -14,6 +14,13 @@ import type { MetricUnit, Series as SeriesMap } from "../lib/types";
 // métricas donde un aumento es "malo" (para colorear la variación de forma intuitiva)
 const LOWER_IS_BETTER = new Set(["mora", "a11", "a16", "a17", "ag3", "rg3", "rg5", "e1", "c2", "c3"]);
 
+// agregados fijados arriba del buscador
+const GROUP_OPTS = [
+  { code: "AA000", label: "Sistema financiero" },
+  { code: "AA120", label: "Bancos privados" },
+  { code: "AA110", label: "Bancos públicos" },
+];
+
 function StatCard({ label, sub, unit, value, prev, invert, variation }: {
   label: string; sub: string; unit: MetricUnit;
   value: number | null; prev: number | null; invert?: boolean; variation?: boolean;
@@ -114,22 +121,16 @@ export default function Series() {
       </div>
 
       <div className="controls">
-        {(["AA000", "AA110", "AA120"] as const).map((g) => (
-          <button key={g} className={`ctl ${sel === g ? "on" : ""}`} onClick={() => setSel(g)}>
-            {GROUP_LABELS[g]}
-          </button>
-        ))}
         <EntityPicker
           entities={index.entities}
+          groups={GROUP_OPTS}
           onPick={(code) => setSel(code)}
-          placeholder="Ver una entidad…"
+          placeholder="Buscar sistema, grupo o entidad…"
         />
-        {!isGroup && (
-          <span className="chip" style={{ borderColor: PALETTE[0] }}>
-            <span style={{ color: PALETTE[0] }}>●</span> {nameOf(sel)}
-            <button onClick={() => setSel("AA000")} title="Volver al sistema">×</button>
-          </span>
-        )}
+        <span className="chip" style={{ borderColor: color }}>
+          <span style={{ color }}>●</span> Viendo: {nameOf(sel)}
+          {sel !== "AA000" && <button onClick={() => setSel("AA000")} title="Volver al sistema">×</button>}
+        </span>
       </div>
 
       <div className="serieswrap">
