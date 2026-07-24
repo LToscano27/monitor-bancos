@@ -27,27 +27,32 @@ function Shell() {
   return (
     <>
       <nav className="topnav">
-        <NavLink to="/" className="brand">
-          <svg width="20" height="20" viewBox="0 0 32 32">
-            <rect width="32" height="32" rx="7" fill="var(--panel2)" />
-            <path d="M6 24 L12 15 L17 19 L26 8" stroke="#4da3ff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="26" cy="8" r="2.6" fill="#33d69f" />
-          </svg>
-          Monitor Bancos
-          {/* bandera argentina en SVG (el emoji 🇦🇷 no se renderiza en Windows) */}
-          <svg width="21" height="15" viewBox="0 0 21 15" style={{ borderRadius: 2.5, flexShrink: 0 }}>
-            <rect width="21" height="15" fill="#74ACDF" />
-            <rect y="5" width="21" height="5" fill="#ffffff" />
-            <circle cx="10.5" cy="7.5" r="1.8" fill="#F6B40E" stroke="#c69310" strokeWidth="0.4" />
-          </svg>
-        </NavLink>
-        <NavLink to="/" end className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Sistema</NavLink>
-        <NavLink to="/ranking" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Ranking</NavLink>
-        <NavLink to="/series" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Series</NavLink>
-        <NavLink to="/comparar" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Comparar</NavLink>
-        <span className="spacer" />
-        {index.latest && <span className="badge">{periodLabel(index.latest)}</span>}
-        <ThemeToggle />
+        <div className="navrow">
+          <NavLink to="/" className="brand">
+            <svg width="20" height="20" viewBox="0 0 32 32">
+              <rect width="32" height="32" rx="7" fill="var(--panel2)" />
+              <path d="M6 24 L12 15 L17 19 L26 8" stroke="#4da3ff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="26" cy="8" r="2.6" fill="#33d69f" />
+            </svg>
+            Monitor Bancos
+            {/* bandera argentina en SVG (el emoji 🇦🇷 no se renderiza en Windows) */}
+            <svg width="21" height="15" viewBox="0 0 21 15" style={{ borderRadius: 2.5, flexShrink: 0 }}>
+              <rect width="21" height="15" fill="#74ACDF" />
+              <rect y="5" width="21" height="5" fill="#ffffff" />
+              <circle cx="10.5" cy="7.5" r="1.8" fill="#F6B40E" stroke="#c69310" strokeWidth="0.4" />
+            </svg>
+          </NavLink>
+          <div className="navright">
+            {index.latest && <span className="badge">{periodLabel(index.latest)}</span>}
+            <ThemeToggle />
+          </div>
+        </div>
+        <div className="navtabs">
+          <NavLink to="/" end className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Sistema</NavLink>
+          <NavLink to="/ranking" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Ranking</NavLink>
+          <NavLink to="/series" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Series</NavLink>
+          <NavLink to="/comparar" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Comparar</NavLink>
+        </div>
       </nav>
       <div className="wrap">
         <Routes>

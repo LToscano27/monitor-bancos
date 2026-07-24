@@ -91,9 +91,9 @@ export default function EntityPicker({ entities, exclude = [], groups = [], onPi
               onMouseLeave={(ev) => (ev.currentTarget.style.background = "")}
             >
               <b>{shortName(e.nombre)}</b>
-              <span className="mut" style={{ marginLeft: 8, fontSize: 11.5 }}>
-                {e.code}{e.last ? ` · hasta ${e.last.slice(0, 4)}` : ""}
-              </span>
+              {e.alias && (
+                <span className="mut" style={{ marginLeft: 8, fontSize: 11.5 }}>{e.alias}</span>
+              )}
             </div>
           ))}
         </div>

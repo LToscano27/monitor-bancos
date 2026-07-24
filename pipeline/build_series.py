@@ -76,9 +76,15 @@ SERIES_KEYS = MODERN_KEYS
 def load_periods() -> list[dict]:
     files = sorted((DATA_DIR / "periods").glob("*.json"))
     out = []
+    seen: set[str] = set()
     for f in files:
         with open(f, encoding="utf-8") as fh:
-            out.append(json.load(fh))
+            data = json.load(fh)
+        # defensa contra dumps stale: un mismo período no puede aparecer dos veces
+        if data["fecha"] in seen:
+            continue
+        seen.add(data["fecha"])
+        out.append(data)
     return out
 
 

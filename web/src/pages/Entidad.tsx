@@ -82,7 +82,7 @@ export default function Entidad() {
             {meta?.grupo && <span className={`grptag ${meta.grupo}`}>{GRUPO_LABEL[meta.grupo]}</span>}
             {ref && (
               <span style={{ marginLeft: meta?.grupo ? 10 : 0 }}>
-                Código BCRA {code} · datos desde {periodLabel(ref.first)}
+                Datos desde {periodLabel(ref.first)}
                 {inactive ? ` hasta ${periodLabel(ref.last)}` : ""}
               </span>
             )}

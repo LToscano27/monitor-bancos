@@ -35,6 +35,11 @@ def process(period: str, force: bool = False) -> Path | None:
         data = parse_period(root, period)
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
+    # El BCRA a veces publica la URL de un mes con el contenido (stale) del mes anterior
+    # (verificado en 201403 = feb-2014 y 202007 = jun-2020). La fecha interna del dump es
+    # la autoridad: si no coincide con el período pedido, el mes todavía no está publicado.
+    if data.get("fecha") != period:
+        return None
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
