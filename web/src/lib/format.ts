@@ -82,7 +82,7 @@ export function delta(unit: MetricUnit, cur: number | null | undefined, prev: nu
 
 /** Nombre corto de entidad para gráficos y tablas. */
 export function shortName(n: string): string {
-  return n
+  const short = n
     .replace(/BANCO DE LA /i, "")
     .replace(/BANCO /i, "")
     .replace(/COMPAÑ[IÍ]A FINANCIERA /i, "")
@@ -94,6 +94,15 @@ export function shortName(n: string): string {
     .replace(/^DE /i, "")
     .replace(/\s+/g, " ")
     .trim();
+  if (short.length >= 3) return short;
+  // p.ej. "COMPAÑIA FINANCIERA ARGENTINA S.A." quedaría vacío: usar el nombre
+  // completo quitando solo la forma jurídica del final
+  const gentle = n
+    .replace(/ S\.?\s?A\.?U?\.?$/i, "")
+    .replace(/ SOCIEDAD ANONIMA.*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return gentle || n;
 }
 
 export const GROUP_LABELS: Record<string, string> = {
