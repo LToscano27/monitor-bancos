@@ -115,17 +115,6 @@ section { margin-top: 26px; }
 }
 
 /* tira de stats para la ficha de entidad (distinta de las cards de la home) */
-.statstrip {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-  overflow: hidden;
-}
-.statstrip .st {
-  padding: 12px 16px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
-}
-.statstrip .st .l { color: var(--mut); font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; }
-.statstrip .st .v { font-size: 18px; font-weight: 670; margin-top: 4px; }
-.statstrip .st .deltas { display: flex; gap: 8px; margin-top: 4px; font-size: 11px; }
 .pos { color: var(--good); }
 .neg { color: var(--bad); }
 .mut { color: var(--mut); }

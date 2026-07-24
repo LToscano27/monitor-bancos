@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import BalanceComposition from "../components/BalanceComposition";
+import Kpi from "../components/Kpi";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import { loadEntity, loadMeta } from "../lib/data";
-import { delta, fmtValue, money, num, PALETTE, periodLabel, shiftPeriod } from "../lib/format";
+import { money, num, PALETTE, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
-import type { EntityMeta, EntitySeries, MetricUnit } from "../lib/types";
+import type { EntityMeta, EntitySeries } from "../lib/types";
 
-const STRIP_KEYS: { key: string; invert?: boolean }[] = [
-  { key: "activo" }, { key: "depositos" }, { key: "prestamos" }, { key: "patrimonio" },
+// mismo layout que la home: 4 montos grandes + 5 ratios/estructura chicos
+const KPI_MONEY = ["activo", "depositos", "prestamos", "patrimonio"];
+const KPI_RATIOS: { key: string; invert?: boolean }[] = [
   { key: "mora", invert: true }, { key: "roe" }, { key: "roa" }, { key: "liquidez" },
   { key: "personal" },
 ];
@@ -18,26 +20,6 @@ const GRUPO_LABEL: Record<string, string> = {
   privado: "Banco privado",
   financiera: "Compañía financiera",
 };
-
-function StripStat({ label, unit, value, prevMonth, prevYear, invert }: {
-  label: string; unit: MetricUnit; value: number | null;
-  prevMonth: number | null; prevYear: number | null; invert?: boolean;
-}) {
-  const tag = (t: string, prev: number | null) => {
-    const d = delta(unit, value, prev);
-    if (!d) return null;
-    let cls: string = d.cls;
-    if (invert && cls !== "mut") cls = cls === "pos" ? "neg" : "pos";
-    return <span><span className="mut">{t} </span><b className={cls}>{d.text}</b></span>;
-  };
-  return (
-    <div className="st">
-      <div className="l">{label}</div>
-      <div className="v">{fmtValue(value, unit)}</div>
-      <div className="deltas">{tag("m/m", prevMonth)}{tag("i.a.", prevYear)}</div>
-    </div>
-  );
-}
 
 export default function Entidad() {
   const { code = "" } = useParams();
@@ -115,11 +97,26 @@ export default function Entidad() {
         <p className="stitle">
           Indicadores · {base ? periodLabel(base, true) : "—"} · variación m/m e interanual
         </p>
-        <div className="statstrip">
-          {STRIP_KEYS.map(({ key, invert }) => {
+        <div className="kpis big4">
+          {KPI_MONEY.map((key) => {
             const s = ent.m[key] ?? [];
             return (
-              <StripStat
+              <Kpi
+                key={key}
+                label={index.metrics[key].label}
+                unit={index.metrics[key].unit}
+                value={lastIdx >= 0 ? s[lastIdx] ?? null : null}
+                prevMonth={iPm >= 0 ? s[iPm] : null}
+                prevYear={iPy >= 0 ? s[iPy] : null}
+              />
+            );
+          })}
+        </div>
+        <div className="kpis sm5">
+          {KPI_RATIOS.map(({ key, invert }) => {
+            const s = ent.m[key] ?? [];
+            return (
+              <Kpi
                 key={key}
                 label={index.metrics[key].label}
                 unit={index.metrics[key].unit}
