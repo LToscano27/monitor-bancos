@@ -1,76 +1,98 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import EntityPicker from "../components/EntityPicker";
 import Seg from "../components/Seg";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import { loadEntity } from "../lib/data";
 import { deflateSeries } from "../lib/deflate";
-import { GROUP_LABELS, isMoney, PALETTE, shiftPeriod, shortName } from "../lib/format";
+import {
+  delta, fmtValue, GROUP_LABELS, isMoney, PALETTE, periodLabel, shiftPeriod, shortName,
+} from "../lib/format";
 import { useCore } from "../lib/store";
-import type { Series as SeriesMap } from "../lib/types";
+import type { MetricUnit, Series as SeriesMap } from "../lib/types";
 
-type View = "nivel" | "ia" | "im";
+// métricas donde un aumento es "malo" (para colorear la variación de forma intuitiva)
+const LOWER_IS_BETTER = new Set(["mora", "a11", "a16", "a17", "ag3", "rg3", "rg5", "e1", "c2", "c3"]);
 
-/** variación % contra `lag` meses atrás (por período, tolera huecos de publicación) */
-function variation(values: (number | null)[], periods: string[], lag: number): (number | null)[] {
-  const byPeriod = new Map(periods.map((p, i) => [p, values[i]]));
-  return values.map((v, i) => {
-    const prev = byPeriod.get(shiftPeriod(periods[i], -lag));
-    if (v == null || prev == null || prev === 0) return null;
-    return 100 * (v / prev - 1);
-  });
+function StatCard({ label, sub, unit, value, prev, invert, variation }: {
+  label: string; sub: string; unit: MetricUnit;
+  value: number | null; prev: number | null; invert?: boolean; variation?: boolean;
+}) {
+  let body: ReactNode = fmtValue(value, unit);
+  let cls = "";
+  if (variation) {
+    const d = delta(unit, value, prev);
+    if (!d) { body = "—"; }
+    else {
+      cls = invert && d.cls !== "mut" ? (d.cls === "pos" ? "neg" : "pos") : d.cls;
+      body = d.text;
+    }
+  }
+  return (
+    <div className="kpi">
+      <div className="l">{label}</div>
+      <div className="v" style={variation ? { color: `var(--${cls === "pos" ? "good" : cls === "neg" ? "bad" : "txt"})` } : undefined}>
+        {body}
+      </div>
+      <div className="u mut" style={{ fontSize: 11, marginTop: 3 }}>{sub}</div>
+    </div>
+  );
 }
 
 export default function Series() {
   const { index, system, ipc } = useCore();
   const periods = system.periods;
-  const latest = periods[periods.length - 1];
+  const refPeriod = periods[periods.length - 1];
 
   const [metric, setMetric] = useState("activo");
-  const [selected, setSelected] = useState<string[]>(["AA000"]);
+  const [sel, setSel] = useState("AA000"); // selección única: código de grupo (AA###) o de entidad
   const [entSeries, setEntSeries] = useState<Record<string, SeriesMap>>({});
   const [mode, setMode] = useState<"nominal" | "real">("nominal");
-  const [view, setView] = useState<View>("nivel");
 
   const def = index.metrics[metric];
   const money = isMoney(def.unit);
   const canReal = money && ipc != null;
+  const real = mode === "real" && canReal;
 
-  // cargar series de entidades seleccionadas que falten
   useEffect(() => {
-    selected
-      .filter((c) => !c.startsWith("AA") && !entSeries[c])
-      .forEach((c) => {
-        loadEntity(c).then((e) => setEntSeries((prev) => ({ ...prev, [c]: e.m })));
-      });
-  }, [selected, entSeries]);
+    if (!sel.startsWith("AA") && !entSeries[sel]) {
+      loadEntity(sel).then((e) => setEntSeries((p) => ({ ...p, [sel]: e.m }))).catch(() => {});
+    }
+  }, [sel, entSeries]);
 
+  const isGroup = sel.startsWith("AA");
+  const srcSeries: SeriesMap | undefined = isGroup ? system.groups[sel] : entSeries[sel];
   const nameOf = (code: string) =>
-    GROUP_LABELS[code] ??
-    shortName(index.entities.find((e) => e.code === code)?.nombre ?? code);
+    GROUP_LABELS[code] ?? shortName(index.entities.find((e) => e.code === code)?.nombre ?? code);
 
-  const datasets = useMemo(() => {
-    return selected
-      .map((code, i) => {
-        const src = code.startsWith("AA") ? system.groups[code] : entSeries[code];
-        if (!src) return null;
-        let values = src[metric] ?? [];
-        if (mode === "real" && canReal && ipc) values = deflateSeries(values, periods, ipc, latest);
-        if (view === "ia") values = variation(values, periods, 12);
-        if (view === "im") values = variation(values, periods, 1);
-        return { label: nameOf(code), values, color: PALETTE[i % PALETTE.length] };
-      })
-      .filter((d) => d != null);
+  // valores mostrados (deflactados si corresponde)
+  const values = useMemo(() => {
+    let v = srcSeries?.[metric] ?? [];
+    if (real && ipc) v = deflateSeries(v, periods, ipc, refPeriod);
+    return v;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, entSeries, metric, mode, view, canReal, ipc, periods, latest, system]);
+  }, [srcSeries, metric, real, ipc, periods, refPeriod]);
+
+  // último período con dato para esta selección
+  const lastIdx = useMemo(() => {
+    for (let i = values.length - 1; i >= 0; i--) if (values[i] != null) return i;
+    return -1;
+  }, [values]);
+
+  const base = lastIdx >= 0 ? periods[lastIdx] : null;
+  const iPm = base ? periods.indexOf(shiftPeriod(base, -1)) : -1;
+  const iPy = base ? periods.indexOf(shiftPeriod(base, -12)) : -1;
+  const invert = LOWER_IS_BETTER.has(metric);
 
   const breakNote = index.series_breaks[metric];
+  const color = isGroup && sel === "AA000" ? "#8a97b2" : PALETTE[0];
 
   return (
     <>
       <h1 className="pagetitle">Series históricas</h1>
       <div className="pagesub">
-        Cualquier indicador, del sistema o de cada entidad, desde julio 2011 — con variaciones
-        interanuales e intermensuales.
+        La evolución de un indicador, del sistema o de una entidad, desde julio 2011. Para superponer
+        varias entidades usá el <Link to="/comparar">comparador</Link>.
       </div>
 
       <div className="controls">
@@ -79,22 +101,13 @@ export default function Series() {
             <option key={k} value={k}>{m.label}</option>
           ))}
         </select>
-        <Seg
-          options={[
-            { value: "nivel", label: "Nivel" },
-            { value: "ia", label: "Var. interanual" },
-            { value: "im", label: "Var. mensual" },
-          ]}
-          value={view}
-          onChange={setView}
-        />
         {money && (
           <Seg
             options={[
               { value: "nominal", label: "$ corrientes" },
-              { value: "real", label: "$ constantes" },
+              { value: "real", label: `$ constantes${canReal ? "" : " (n/d)"}` },
             ]}
-            value={canReal ? mode : "nominal"}
+            value={real ? "real" : "nominal"}
             onChange={(v) => canReal && setMode(v)}
           />
         )}
@@ -102,56 +115,76 @@ export default function Series() {
 
       <div className="controls">
         {(["AA000", "AA110", "AA120"] as const).map((g) => (
-          <button
-            key={g}
-            className={`ctl ${selected.includes(g) ? "on" : ""}`}
-            onClick={() =>
-              setSelected((s) => (s.includes(g) ? s.filter((x) => x !== g) : [...s, g]))
-            }
-          >
+          <button key={g} className={`ctl ${sel === g ? "on" : ""}`} onClick={() => setSel(g)}>
             {GROUP_LABELS[g]}
           </button>
         ))}
         <EntityPicker
           entities={index.entities}
-          exclude={selected}
-          onPick={(code) => setSelected((s) => [...s, code])}
-          placeholder="Agregar entidad…"
+          onPick={(code) => setSel(code)}
+          placeholder="Ver una entidad…"
         />
+        {!isGroup && (
+          <span className="chip" style={{ borderColor: PALETTE[0] }}>
+            <span style={{ color: PALETTE[0] }}>●</span> {nameOf(sel)}
+            <button onClick={() => setSel("AA000")} title="Volver al sistema">×</button>
+          </span>
+        )}
       </div>
 
-      {selected.some((c) => !c.startsWith("AA")) && (
-        <div className="chips" style={{ marginBottom: 12 }}>
-          {selected.filter((c) => !c.startsWith("AA")).map((c) => (
-            <span key={c} className="chip">
-              {nameOf(c)}
-              <button onClick={() => setSelected((s) => s.filter((x) => x !== c))}>×</button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="card">
-        <h3>{def.label}</h3>
-        <div className="cs">
-          {view === "nivel"
-            ? mode === "real" && canReal ? "Pesos constantes del último período" : "Valores publicados"
-            : view === "ia" ? "Variación % contra el mismo mes del año anterior" : "Variación % mensual"}
-        </div>
-        <TimeSeriesChart
-          periods={periods}
-          datasets={datasets}
-          unit={def.unit}
-          asVariation={view !== "nivel"}
-        />
-        {breakNote && view === "nivel" && <div className="note">{breakNote}</div>}
-        {money && view === "nivel" && mode === "nominal" && (
-          <div className="note">
-            Serie en pesos corrientes: en un contexto de alta inflación el crecimiento nominal
-            sobreestima el real. Probá la vista en $ constantes o las variaciones interanuales
-            comparadas con la inflación.
+      <div className="serieswrap">
+        <div className="card">
+          <h3>{def.label} · {nameOf(sel)}</h3>
+          <div className="cs">
+            {real ? "Pesos constantes del último período" : "Valores publicados"}
+            {base ? ` · último dato ${periodLabel(base, true)}` : ""}
           </div>
-        )}
+          <TimeSeriesChart
+            periods={periods}
+            datasets={[{ label: nameOf(sel), values, color }]}
+            unit={def.unit}
+          />
+          {breakNote && <div className="note">{breakNote}</div>}
+          {money && mode === "nominal" && (
+            <div className="note">
+              Serie en pesos corrientes: con alta inflación el crecimiento nominal sobreestima el real.
+              Probá la vista en $ constantes.
+            </div>
+          )}
+        </div>
+
+        <div className="sidecards">
+          <StatCard
+            label="Último dato"
+            sub={base ? periodLabel(base, true) : "—"}
+            unit={def.unit}
+            value={lastIdx >= 0 ? values[lastIdx] : null}
+            prev={null}
+          />
+          <StatCard
+            label="Variación mensual"
+            sub={iPm >= 0 ? `vs. ${periodLabel(periods[iPm])}` : "sin mes previo"}
+            unit={def.unit}
+            value={lastIdx >= 0 ? values[lastIdx] : null}
+            prev={iPm >= 0 ? values[iPm] : null}
+            invert={invert}
+            variation
+          />
+          <StatCard
+            label="Variación interanual"
+            sub={iPy >= 0 ? `vs. ${periodLabel(periods[iPy])}` : "sin año previo"}
+            unit={def.unit}
+            value={lastIdx >= 0 ? values[lastIdx] : null}
+            prev={iPy >= 0 ? values[iPy] : null}
+            invert={invert}
+            variation
+          />
+          {real && (
+            <div className="u mut" style={{ fontSize: 11, lineHeight: 1.5 }}>
+              Variaciones calculadas sobre la serie en pesos constantes: reflejan crecimiento real.
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

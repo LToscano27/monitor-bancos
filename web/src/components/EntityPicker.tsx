@@ -24,8 +24,7 @@ export default function EntityPicker({ entities, exclude = [], onPick, placehold
         e.nombre.toLowerCase().includes(t) ||
         e.alias.toLowerCase().includes(t) ||
         e.code.includes(t),
-      )
-      .slice(0, 12);
+      );
   }, [entities, exclude, q]);
 
   return (

@@ -90,6 +90,7 @@ export function shortName(n: string): string {
     .replace(/ SOCIEDAD ANONIMA.*/i, "")
     .replace(/ COOPERATIVO.*/i, " (Credicoop)")
     .replace(/ARGENTINA/i, "")
+    .replace(/\(\s*\)/g, "")
     .replace(/^DE /i, "")
     .replace(/\s+/g, " ")
     .trim();

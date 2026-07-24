@@ -150,6 +150,15 @@ td.n, th.n { text-align: left; }
 tbody tr:hover { background: var(--panel2); }
 .rk { color: var(--mut); width: 26px; }
 
+/* página de series: gráfico grande + columna de tarjetas de dato al costado */
+.serieswrap { display: grid; grid-template-columns: 1fr 250px; gap: 16px; align-items: start; }
+.sidecards { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) {
+  .serieswrap { grid-template-columns: 1fr; }
+  .sidecards { flex-direction: row; flex-wrap: wrap; }
+  .sidecards .kpi { flex: 1; min-width: 150px; }
+}
+
 .chartbox { position: relative; height: 380px; }
 .chartbox.sm { height: 300px; }
 .chartbox.xs { height: 240px; }
