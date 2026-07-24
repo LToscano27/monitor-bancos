@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import Kpi from "../components/Kpi";
+import BalanceComposition from "../components/BalanceComposition";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import { loadEntity, loadMeta } from "../lib/data";
-import { fmtValue, money, num, PALETTE, periodLabel, shiftPeriod } from "../lib/format";
+import { delta, fmtValue, money, num, PALETTE, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
-import type { EntityMeta, EntitySeries } from "../lib/types";
+import type { EntityMeta, EntitySeries, MetricUnit } from "../lib/types";
 
-const KPI_KEYS: { key: string; invert?: boolean }[] = [
+const STRIP_KEYS: { key: string; invert?: boolean }[] = [
   { key: "activo" }, { key: "depositos" }, { key: "prestamos" }, { key: "patrimonio" },
   { key: "mora", invert: true }, { key: "roe" }, { key: "roa" }, { key: "liquidez" },
   { key: "personal" },
@@ -18,6 +18,26 @@ const GRUPO_LABEL: Record<string, string> = {
   privado: "Banco privado",
   financiera: "Compañía financiera",
 };
+
+function StripStat({ label, unit, value, prevMonth, prevYear, invert }: {
+  label: string; unit: MetricUnit; value: number | null;
+  prevMonth: number | null; prevYear: number | null; invert?: boolean;
+}) {
+  const tag = (t: string, prev: number | null) => {
+    const d = delta(unit, value, prev);
+    if (!d) return null;
+    let cls: string = d.cls;
+    if (invert && cls !== "mut") cls = cls === "pos" ? "neg" : "pos";
+    return <span><span className="mut">{t} </span><b className={cls}>{d.text}</b></span>;
+  };
+  return (
+    <div className="st">
+      <div className="l">{label}</div>
+      <div className="v">{fmtValue(value, unit)}</div>
+      <div className="deltas">{tag("m/m", prevMonth)}{tag("i.a.", prevYear)}</div>
+    </div>
+  );
+}
 
 export default function Entidad() {
   const { code = "" } = useParams();
@@ -36,7 +56,7 @@ export default function Entidad() {
   const periods = system.periods;
   const ref = index.entities.find((e) => e.code === code);
 
-  // último período con dato de activo para esta entidad (puede haber dejado de existir)
+  // último período con dato de activo (la entidad pudo haber dejado de existir)
   const lastIdx = useMemo(() => {
     const s = ent?.m?.activo ?? [];
     for (let i = s.length - 1; i >= 0; i--) if (s[i] != null) return i;
@@ -48,6 +68,9 @@ export default function Entidad() {
 
   const def = index.metrics[metric];
   const inactive = ref && index.latest != null && ref.last !== index.latest;
+  const base = lastIdx >= 0 ? periods[lastIdx] : null;
+  const iPm = base ? periods.indexOf(shiftPeriod(base, -1)) : -1;
+  const iPy = base ? periods.indexOf(shiftPeriod(base, -12)) : -1;
 
   return (
     <>
@@ -65,26 +88,38 @@ export default function Entidad() {
             )}
           </div>
         </div>
+        <div style={{ flex: 1 }} />
+        {lastIdx >= 0 && (
+          <div style={{ textAlign: "right" }}>
+            <div className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>
+              Share del activo del sistema
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: "var(--acc)" }}>
+              {(() => {
+                const v = ent.m.activo?.[lastIdx];
+                const sys = system.groups.AA000?.activo?.[lastIdx];
+                return v != null && sys ? num(100 * v / sys, 2) + "%" : "—";
+              })()}
+            </div>
+          </div>
+        )}
       </div>
       {inactive && (
         <div className="note" style={{ marginTop: 10 }}>
           Esta entidad dejó de informar en {periodLabel(ref!.last, true)} (fusión, absorción o baja —
-          ver reseña abajo).
+          ver historia abajo).
         </div>
       )}
 
       <section>
         <p className="stitle">
-          Indicadores · {lastIdx >= 0 ? periodLabel(periods[lastIdx], true) : "—"}
+          Indicadores · {base ? periodLabel(base, true) : "—"} · variación m/m e interanual
         </p>
-        <div className="kpis">
-          {KPI_KEYS.map(({ key, invert }) => {
+        <div className="statstrip">
+          {STRIP_KEYS.map(({ key, invert }) => {
             const s = ent.m[key] ?? [];
-            const base = lastIdx >= 0 ? periods[lastIdx] : null;
-            const iPm = base ? periods.indexOf(shiftPeriod(base, -1)) : -1;
-            const iPy = base ? periods.indexOf(shiftPeriod(base, -12)) : -1;
             return (
-              <Kpi
+              <StripStat
                 key={key}
                 label={index.metrics[key].label}
                 unit={index.metrics[key].unit}
@@ -98,12 +133,25 @@ export default function Entidad() {
         </div>
       </section>
 
+      {meta && meta.balance.length > 0 && (
+        <section>
+          <div className="card">
+            <h3>Composición del balance</h3>
+            <div className="cs">
+              {periodLabel(meta.period, true)} · rubros del balance resumido · títulos separados según
+              el balance detallado
+            </div>
+            <BalanceComposition meta={meta} />
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div>
               <h3>Evolución histórica</h3>
-              <div className="cs">Serie propia vs. sistema financiero</div>
+              <div className="cs">Serie propia{def.unit === "pct" || def.unit === "veces" ? " vs. sistema" : ""}</div>
             </div>
             <select value={metric} onChange={(e) => setMetric(e.target.value)}>
               {Object.entries(index.metrics).map(([k, m]) => (
@@ -114,7 +162,7 @@ export default function Entidad() {
           <TimeSeriesChart
             periods={periods}
             datasets={[
-              { label: "Entidad", values: ent.m[metric] ?? [], color: PALETTE[0] },
+              { label: ent.nombre, values: ent.m[metric] ?? [], color: PALETTE[0] },
               ...(def.unit === "pct" || def.unit === "veces"
                 ? [{ label: "Sistema", values: system.groups.AA000?.[metric] ?? [], color: "#8a97b2" }]
                 : []),
@@ -169,26 +217,6 @@ export default function Entidad() {
           )}
         </div>
       </section>
-
-      {lastIdx >= 0 && (
-        <section>
-          <p className="stitle">Participación en el sistema</p>
-          <div className="kpis">
-            {["activo", "depositos", "prestamos"].map((k) => {
-              const v = ent.m[k]?.[lastIdx];
-              const sys = system.groups.AA000?.[k]?.[lastIdx];
-              const share = v != null && sys ? (100 * v) / sys : null;
-              return (
-                <div className="kpi" key={k}>
-                  <div className="l">Share {index.metrics[k].label}</div>
-                  <div className="v">{share != null ? num(share, 2) + "%" : "—"}</div>
-                  <div className="deltas"><span className="mut">{fmtValue(v ?? null, "miles_pesos")}</span></div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </>
   );
 }

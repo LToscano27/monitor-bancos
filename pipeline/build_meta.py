@@ -54,6 +54,38 @@ def parse_balres(path: Path) -> list[dict]:
     return items
 
 
+def parse_titulos(path: Path) -> dict | None:
+    """Separa títulos públicos vs privados desde baldet (cuentas 12xxxx).
+
+    baldet trae saldo debe/haber por cuenta. Las hojas son las cuentas que no terminan
+    en 000; la suma de hojas == cuenta 120000 == rubro 'Títulos Públicos y Privados' del
+    balres (verificado al peso contra 202604). 'otros' son Notas del BCRA y similares.
+    """
+    pub = priv = otros = 0.0
+    found = False
+    for ln in bcra.read_lines(path):
+        f = split_tsv(ln)
+        if len(f) < 7:
+            continue
+        cta, nombre = f[3], f[4].upper()
+        if not cta.startswith("12") or cta.endswith("000"):
+            continue
+        try:
+            val = float(f[5] or 0) - float(f[6] or 0)
+        except ValueError:
+            continue
+        found = True
+        if "TULOS P" in nombre and "BLICOS" in nombre:      # TÍTULOS PÚBLICOS (con o sin tildes)
+            pub += val
+        elif "TULOS PRIVADOS" in nombre:
+            priv += val
+        else:
+            otros += val
+    if not found:
+        return None
+    return {"publicos": round(pub, 2), "privados": round(priv, 2), "otros": round(otros, 2)}
+
+
 def parse_resena(path: Path) -> list[str]:
     """Un archivo puede traer varios bloques (código reutilizado o renombres); cada bloque
     abre con una línea-header TSV `"code"\t"nombre"\t...\t"estado"`. Los headers se
@@ -118,12 +150,47 @@ def build(period: str) -> int:
             balres = bcra.find_file(root, "Entfin", "Tec_Cont", "balres", f"{code}.txt")
             if balres:
                 meta["balance"] = parse_balres(balres)
+            baldet = bcra.find_file(root, "Entfin", "Tec_Cont", "baldet", f"{code}.txt")
+            if baldet:
+                meta["titulos"] = parse_titulos(baldet)
             if code in logos:
                 dest = LOGOS_DIR / f"{code}{logos[code].suffix.lower()}"
                 shutil.copyfile(logos[code], dest)
                 meta["logo"] = dest.name
             with open(DATA_DIR / "meta" / f"{code}.json", "w", encoding="utf-8") as f:
                 json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
+            n += 1
+
+        # agregados AA000/AA110/AA120: balance del balres propio + títulos sumados de sus
+        # miembros (no hay baldet para agrupamientos, pero la suma de entidades es exacta)
+        group_names = {"AA000": "SISTEMA FINANCIERO", "AA110": "BANCOS PÚBLICOS", "AA120": "BANCOS PRIVADOS"}
+        for gcode, gnombre in group_names.items():
+            gmeta = {"code": gcode, "nombre": gnombre, "alias": "", "grupo": None,
+                     "resena": [], "balance": [], "logo": None, "period": period}
+            balres = bcra.find_file(root, "Entfin", "Tec_Cont", "balres", f"{gcode}.txt")
+            if balres:
+                gmeta["balance"] = parse_balres(balres)
+            tot = {"publicos": 0.0, "privados": 0.0, "otros": 0.0}
+            algun_titulo = False
+            for code in nomina:
+                mfile = DATA_DIR / "meta" / f"{code}.json"
+                if not mfile.exists():
+                    continue
+                with open(mfile, encoding="utf-8") as f:
+                    m = json.load(f)
+                t = m.get("titulos")
+                if not t:
+                    continue
+                if gcode == "AA000" or \
+                   (gcode == "AA110" and m.get("grupo") == "publico") or \
+                   (gcode == "AA120" and m.get("grupo") == "privado"):
+                    algun_titulo = True
+                    for k in tot:
+                        tot[k] += t.get(k, 0.0)
+            if algun_titulo:
+                gmeta["titulos"] = {k: round(v, 2) for k, v in tot.items()}
+            with open(DATA_DIR / "meta" / f"{gcode}.json", "w", encoding="utf-8") as f:
+                json.dump(gmeta, f, ensure_ascii=False, separators=(",", ":"))
             n += 1
 
         # entidades dadas de baja: solo reseña (sirven para las fichas históricas)

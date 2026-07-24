@@ -1,24 +1,32 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
 import "../lib/charts";
+import BalanceComposition from "../components/BalanceComposition";
 import Kpi from "../components/Kpi";
 import Seg from "../components/Seg";
 import TimeSeriesChart from "../components/TimeSeriesChart";
+import { loadMeta } from "../lib/data";
 import { deflateSeries } from "../lib/deflate";
 import { fmtValue, GROUP_LABELS, num, PALETTE, pct, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
+import { chartColors, useTheme } from "../lib/theme";
+import type { EntityMeta } from "../lib/types";
 
-const KPI_KEYS: { key: string; invert?: boolean }[] = [
-  { key: "activo" }, { key: "depositos" }, { key: "prestamos" }, { key: "patrimonio" },
+const KPI_MONEY = ["activo", "depositos", "prestamos", "patrimonio"];
+const KPI_RATIOS: { key: string; invert?: boolean }[] = [
   { key: "mora", invert: true }, { key: "roe" }, { key: "roa" }, { key: "liquidez" },
   { key: "personal" },
 ];
 
 export default function Home() {
   const { index, system, ipc } = useCore();
+  const { theme } = useTheme();
+  const cc = chartColors(theme);
   const [mode, setMode] = useState<"nominal" | "real">("nominal");
   const [metric, setMetric] = useState("activo");
   const [showGroups, setShowGroups] = useState(true);
+  const [compMeta, setCompMeta] = useState<EntityMeta | null>(null);
+  const [compGroup, setCompGroup] = useState<"AA000" | "AA110" | "AA120">("AA000");
 
   const periods = system.periods;
   const last = periods.length - 1;
@@ -28,6 +36,10 @@ export default function Home() {
   const idxPrevYear = periods.indexOf(shiftPeriod(latest, -12));
   const canReal = ipc != null;
   const real = mode === "real" && canReal;
+
+  useEffect(() => {
+    loadMeta(compGroup).then(setCompMeta).catch(() => setCompMeta(null));
+  }, [compGroup]);
 
   const seriesOf = (gcode: string, key: string) => {
     const raw = system.groups[gcode]?.[key] ?? [];
@@ -62,6 +74,22 @@ export default function Home() {
     };
   }, [system, last]);
 
+  const kpiCard = (key: string, invert?: boolean) => {
+    const def = index.metrics[key];
+    const s = aa000(key);
+    return (
+      <Kpi
+        key={key}
+        label={def.label}
+        unit={def.unit}
+        value={s[last] ?? null}
+        prevMonth={idxPrevMonth >= 0 ? s[idxPrevMonth] : null}
+        prevYear={idxPrevYear >= 0 ? s[idxPrevYear] : null}
+        invert={invert}
+      />
+    );
+  };
+
   const breakNote = index.series_breaks[metric];
 
   return (
@@ -87,23 +115,8 @@ export default function Home() {
 
       <section>
         <p className="stitle">Totales del sistema · variación intermensual e interanual</p>
-        <div className="kpis">
-          {KPI_KEYS.map(({ key, invert }) => {
-            const def = index.metrics[key];
-            const s = aa000(key);
-            return (
-              <Kpi
-                key={key}
-                label={def.label}
-                unit={def.unit}
-                value={s[last] ?? null}
-                prevMonth={idxPrevMonth >= 0 ? s[idxPrevMonth] : null}
-                prevYear={idxPrevYear >= 0 ? s[idxPrevYear] : null}
-                invert={invert}
-              />
-            );
-          })}
-        </div>
+        <div className="kpis big4">{KPI_MONEY.map((k) => kpiCard(k))}</div>
+        <div className="kpis sm5">{KPI_RATIOS.map(({ key, invert }) => kpiCard(key, invert))}</div>
         {real && (
           <div className="note" style={{ marginTop: 10 }}>
             Montos expresados en pesos constantes de {periodLabel(latest, true)} (deflactados por IPC
@@ -135,6 +148,32 @@ export default function Home() {
         </div>
       </section>
 
+      {compMeta && (
+        <section>
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <h3>Composición del balance</h3>
+                <div className="cs">
+                  Rubros del balance resumido · {periodLabel(compMeta.period, true)} · títulos separados
+                  según el balance detallado
+                </div>
+              </div>
+              <Seg
+                options={[
+                  { value: "AA000", label: "Sistema" },
+                  { value: "AA110", label: "Públicos" },
+                  { value: "AA120", label: "Privados" },
+                ]}
+                value={compGroup}
+                onChange={setCompGroup}
+              />
+            </div>
+            <BalanceComposition meta={compMeta} />
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="grid2">
           <div className="card">
@@ -149,8 +188,8 @@ export default function Home() {
                 options={{
                   responsive: true, maintainAspectRatio: false, cutout: "58%",
                   plugins: {
-                    legend: { position: "right", labels: { color: "#e8edf6" } },
-                    tooltip: { callbacks: { label: (c) => `${c.label}: ${(c.raw as number).toFixed(1)}% del activo` } },
+                    legend: { position: "right", labels: { color: cc.txt } },
+                    tooltip: { callbacks: { label: (c) => `${c.label}: ${num(c.raw as number, 1)}% del activo` } },
                   },
                 }}
               />

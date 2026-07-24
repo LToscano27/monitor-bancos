@@ -1,4 +1,5 @@
-:root {
+:root,
+:root[data-theme="dark"] {
   --bg: #0f1420;
   --panel: #171e2e;
   --panel2: #1e2739;
@@ -10,6 +11,20 @@
   --warn: #ffb454;
   --bad: #ff6b6b;
   --good: #33d69f;
+}
+
+:root[data-theme="light"] {
+  --bg: #f2f5fa;
+  --panel: #ffffff;
+  --panel2: #e9eef7;
+  --line: #d8e0ee;
+  --txt: #1c2433;
+  --mut: #5c6b85;
+  --acc: #1f6fd6;
+  --acc2: #0c9e70;
+  --warn: #c27b12;
+  --bad: #d64545;
+  --good: #0c9e70;
 }
 
 * { box-sizing: border-box; }
@@ -73,6 +88,30 @@ section { margin-top: 26px; }
 .kpi .v { font-size: 21px; font-weight: 680; margin-top: 5px; line-height: 1.1; }
 .kpi .deltas { display: flex; gap: 10px; margin-top: 6px; font-size: 11.5px; }
 .kpi .deltas span b { font-weight: 600; }
+
+/* fila principal (4 montos) y fila secundaria (5 ratios, más compacta) */
+.kpis.big4 { grid-template-columns: repeat(4, 1fr); }
+.kpis.sm5 { grid-template-columns: repeat(5, 1fr); margin-top: 12px; }
+.kpis.sm5 .kpi { padding: 10px 13px; }
+.kpis.sm5 .kpi .v { font-size: 17px; }
+.kpis.sm5 .kpi .l { font-size: 10px; letter-spacing: .4px; }
+@media (max-width: 900px) {
+  .kpis.big4 { grid-template-columns: repeat(2, 1fr); }
+  .kpis.sm5 { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* tira de stats para la ficha de entidad (distinta de las cards de la home) */
+.statstrip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden;
+}
+.statstrip .st {
+  padding: 12px 16px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.statstrip .st .l { color: var(--mut); font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; }
+.statstrip .st .v { font-size: 18px; font-weight: 670; margin-top: 4px; }
+.statstrip .st .deltas { display: flex; gap: 8px; margin-top: 4px; font-size: 11px; }
 .pos { color: var(--good); }
 .neg { color: var(--bad); }
 .mut { color: var(--mut); }
@@ -142,6 +181,9 @@ footer {
 .grptag.publico { background: #1c3a5e; color: #7cc0ff; }
 .grptag.privado { background: #14402f; color: #5fe0b0; }
 .grptag.financiera { background: #46351a; color: #ffce7a; }
+:root[data-theme="light"] .grptag.publico { background: #dcebff; color: #185eb8; }
+:root[data-theme="light"] .grptag.privado { background: #d8f5ea; color: #0a7a56; }
+:root[data-theme="light"] .grptag.financiera { background: #fdeed3; color: #98650e; }
 
 .balance-l0 { font-weight: 700; }
 .balance-l1 { padding-left: 22px; }

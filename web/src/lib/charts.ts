@@ -16,8 +16,6 @@ Chart.register(
   LineElement, PointElement, Filler, Legend, Tooltip,
 );
 
-Chart.defaults.color = "#8a97b2";
-Chart.defaults.borderColor = "#2a3550";
 Chart.defaults.font.family = '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 Chart.defaults.font.size = 11.5;
 Chart.defaults.plugins.legend.labels.boxWidth = 12;

@@ -6,6 +6,7 @@ import Seg from "../components/Seg";
 import { loadPeriod } from "../lib/data";
 import { fmtValue, isMoney, num, periodLabel, shortName } from "../lib/format";
 import { useCore } from "../lib/store";
+import { chartColors, useTheme } from "../lib/theme";
 import type { PeriodData } from "../lib/types";
 
 // métricas donde un valor menor es mejor
@@ -13,6 +14,8 @@ const LOWER_IS_BETTER = new Set(["mora", "a11", "a16", "a17", "ag3", "rg3", "rg5
 
 export default function Ranking() {
   const { index } = useCore();
+  const { theme } = useTheme();
+  const cc = chartColors(theme);
   const [period, setPeriod] = useState(index.latest ?? "");
   const [metric, setMetric] = useState("activo");
   const [grupo, setGrupo] = useState<"todas" | "publico" | "privado" | "financiera">("todas");
@@ -107,8 +110,8 @@ export default function Ranking() {
                     },
                   },
                   scales: {
-                    x: { ticks: { callback: (v) => fmtValue(v as number, def.unit) }, grid: { color: "#2a3550" } },
-                    y: { ticks: { color: "#e8edf6", font: { size: 11 } }, grid: { display: false } },
+                    x: { ticks: { callback: (v) => fmtValue(v as number, def.unit), color: cc.mut }, grid: { color: cc.line } },
+                    y: { ticks: { color: cc.txt, font: { size: 11 } }, grid: { display: false } },
                   },
                 }}
               />

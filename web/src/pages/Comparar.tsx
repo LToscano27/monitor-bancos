@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import EntityPicker from "../components/EntityPicker";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import { loadEntity } from "../lib/data";
-import { fmtValue, PALETTE, shortName } from "../lib/format";
+import { fmtValue, GROUP_LABELS, PALETTE, shortName } from "../lib/format";
 import { useCore } from "../lib/store";
 import type { Series as SeriesMap } from "../lib/types";
 
@@ -13,6 +13,7 @@ const COMPARE_KEYS = [
 ];
 
 const DEFAULTS = ["00007", "00011"]; // Galicia y Nación como arranque ilustrativo
+const BENCH = ["AA000", "AA110", "AA120"] as const;
 
 export default function Comparar() {
   const { index, system } = useCore();
@@ -27,31 +28,38 @@ export default function Comparar() {
 
   useEffect(() => {
     codes
-      .filter((c) => !series[c])
+      .filter((c) => !c.startsWith("AA") && !series[c])
       .forEach((c) => loadEntity(c).then((e) => setSeries((prev) => ({ ...prev, [c]: e.m }))));
   }, [codes, series]);
 
+  const seriesFor = (c: string): SeriesMap | undefined =>
+    c.startsWith("AA") ? system.groups[c] : series[c];
+
   const nameOf = (code: string) =>
-    shortName(index.entities.find((e) => e.code === code)?.nombre ?? code);
+    GROUP_LABELS[code] ?? shortName(index.entities.find((e) => e.code === code)?.nombre ?? code);
 
   const def = index.metrics[metric];
   const datasets = useMemo(
     () =>
       codes
-        .filter((c) => series[c])
+        .filter((c) => seriesFor(c))
         .map((c, i) => ({
           label: nameOf(c),
-          values: series[c][metric] ?? [],
-          color: PALETTE[i % PALETTE.length],
+          values: seriesFor(c)![metric] ?? [],
+          color: c === "AA000" ? "#8a97b2" : PALETTE[i % PALETTE.length],
         })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [codes, series, metric],
+    [codes, series, metric, system],
   );
+
+  const colorOf = (c: string, i: number) => (c === "AA000" ? "#8a97b2" : PALETTE[i % PALETTE.length]);
 
   return (
     <>
       <h1 className="pagetitle">Comparador de entidades</h1>
-      <div className="pagesub">Elegí dos o más bancos y compará sus métricas y su evolución.</div>
+      <div className="pagesub">
+        Elegí dos o más bancos — o el sistema financiero como benchmark — y compará métricas y evolución.
+      </div>
 
       <div className="controls">
         <EntityPicker
@@ -60,23 +68,36 @@ export default function Comparar() {
           onPick={(c) => codes.length < 6 && setCodes([...codes, c])}
           placeholder="Agregar entidad al comparador…"
         />
-        <div className="chips">
-          {codes.map((c, i) => (
-            <span key={c} className="chip" style={{ borderColor: PALETTE[i % PALETTE.length] }}>
-              <span style={{ color: PALETTE[i % PALETTE.length] }}>●</span> {nameOf(c)}
-              <button onClick={() => setCodes(codes.filter((x) => x !== c))}>×</button>
-            </span>
-          ))}
-        </div>
+        {BENCH.filter((g) => !codes.includes(g)).map((g) => (
+          <button
+            key={g}
+            className="ctl"
+            onClick={() => codes.length < 6 && setCodes([...codes, g])}
+            title="Agregar como benchmark"
+          >
+            + {GROUP_LABELS[g]}
+          </button>
+        ))}
+      </div>
+      <div className="chips" style={{ marginBottom: 14 }}>
+        {codes.map((c, i) => (
+          <span key={c} className="chip" style={{ borderColor: colorOf(c, i) }}>
+            <span style={{ color: colorOf(c, i) }}>●</span> {nameOf(c)}
+            <button onClick={() => setCodes(codes.filter((x) => x !== c))}>×</button>
+          </span>
+        ))}
       </div>
 
       {codes.length < 2 ? (
-        <div className="loading">Agregá al menos dos entidades para comparar.</div>
+        <div className="loading">Agregá al menos dos entidades (o una entidad y el sistema) para comparar.</div>
       ) : (
         <>
           <div className="card">
             <h3>Métricas al último período</h3>
-            <div className="cs">Valores publicados por el BCRA</div>
+            <div className="cs">
+              Valores publicados por el BCRA. Los ratios de los agregados (sistema/grupos) ya vienen
+              ponderados y sirven de benchmark; sus montos son totales del agrupamiento.
+            </div>
             <div style={{ overflowX: "auto" }}>
               <table>
                 <thead>
@@ -84,9 +105,11 @@ export default function Comparar() {
                     <th className="n">Métrica</th>
                     {codes.map((c, i) => (
                       <th key={c}>
-                        <Link to={`/entidad/${c}`} style={{ color: PALETTE[i % PALETTE.length] }}>
-                          {nameOf(c)}
-                        </Link>
+                        {c.startsWith("AA") ? (
+                          <span style={{ color: colorOf(c, i) }}>{nameOf(c)}</span>
+                        ) : (
+                          <Link to={`/entidad/${c}`} style={{ color: colorOf(c, i) }}>{nameOf(c)}</Link>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -95,11 +118,14 @@ export default function Comparar() {
                   {COMPARE_KEYS.map((k) => (
                     <tr key={k}>
                       <td className="n">{index.metrics[k].label}</td>
-                      {codes.map((c) => (
-                        <td key={c}>
-                          {series[c] ? fmtValue(series[c][k]?.[last] ?? null, index.metrics[k].unit) : "…"}
-                        </td>
-                      ))}
+                      {codes.map((c) => {
+                        const s = seriesFor(c);
+                        return (
+                          <td key={c}>
+                            {s ? fmtValue(s[k]?.[last] ?? null, index.metrics[k].unit) : "…"}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

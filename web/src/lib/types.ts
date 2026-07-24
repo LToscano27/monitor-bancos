@@ -75,4 +75,6 @@ export interface EntityMeta {
   balance: BalanceItem[];
   logo: string | null;
   period: string;
+  baja?: boolean;
+  titulos?: { publicos: number; privados: number; otros: number } | null;
 }

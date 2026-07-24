@@ -1,6 +1,7 @@
 import { Line } from "react-chartjs-2";
 import "../lib/charts";
 import { fmtValue, periodLabel } from "../lib/format";
+import { chartColors, useTheme } from "../lib/theme";
 import type { MetricUnit } from "../lib/types";
 
 export interface TsDataset {
@@ -13,12 +14,14 @@ interface Props {
   periods: string[];
   datasets: TsDataset[];
   unit: MetricUnit;
-  /** "pct_var": los valores son variaciones % (no la unidad original) */
+  /** true: los valores son variaciones % (no la unidad original) */
   asVariation?: boolean;
   height?: "" | "sm" | "xs";
 }
 
 export default function TimeSeriesChart({ periods, datasets, unit, asVariation, height = "" }: Props) {
+  const { theme } = useTheme();
+  const c = chartColors(theme);
   const fmt = (v: number | null) =>
     asVariation
       ? (v == null ? "—" : (v >= 0 ? "+" : "") + v.toLocaleString("es-AR", { maximumFractionDigits: 1 }) + "%")
@@ -47,21 +50,21 @@ export default function TimeSeriesChart({ periods, datasets, unit, asVariation, 
           maintainAspectRatio: false,
           interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { display: datasets.length > 1, position: "top", labels: { color: "#e8edf6" } },
+            legend: { display: datasets.length > 1, position: "top", labels: { color: c.txt } },
             tooltip: {
               callbacks: {
-                label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y)}`,
+                label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`,
               },
             },
           },
           scales: {
             x: {
-              ticks: { maxTicksLimit: 14, maxRotation: 0, autoSkip: true },
+              ticks: { maxTicksLimit: 14, maxRotation: 0, autoSkip: true, color: c.mut },
               grid: { display: false },
             },
             y: {
-              ticks: { callback: (v) => fmt(typeof v === "number" ? v : null) },
-              grid: { color: "#2a3550" },
+              ticks: { callback: (v) => fmt(typeof v === "number" ? v : null), color: c.mut },
+              grid: { color: c.line },
             },
           },
         }}
