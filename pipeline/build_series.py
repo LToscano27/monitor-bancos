@@ -72,10 +72,6 @@ METRICS = {
 # Métricas de la ficha/series por entidad (las 40 completas pesan poco, van todas).
 SERIES_KEYS = MODERN_KEYS
 
-# Entidades que no se ofrecen en los buscadores (dejaron de operar hace mucho y con muy
-# poca actividad; siguen en los períodos históricos, pero no como opción seleccionable).
-EXCLUDE_ENTITIES = {"00005"}  # The Royal Bank of Scotland N.V. (ex ABN AMRO), baja 2015
-
 
 def load_periods() -> list[dict]:
     files = sorted((DATA_DIR / "periods").glob("*.json"))
@@ -108,8 +104,6 @@ def build() -> dict:
     for i, p in enumerate(periods_data):
         for row in p["entidades"]:
             code = row["code"]
-            if code in EXCLUDE_ENTITIES:
-                continue
             if code not in ent_series:
                 ent_series[code] = {k: [None] * n for k in SERIES_KEYS}
                 ent_meta[code] = {"code": code, "nombre": row.get("nombre", ""),
@@ -146,17 +140,24 @@ def build() -> dict:
         else:
             meta["grupo"] = None
 
+    # En los buscadores solo se ofrecen las entidades que siguen operando (las que
+    # reportan en el último período). Las que dieron de baja quedan en los períodos y
+    # series históricas (y accesibles por URL directa), pero no como opción seleccionable.
+    latest = periods[-1] if periods else None
+    activas = [e for e in ent_meta.values() if e["last"] == latest]
+
     index = {
         "periods": periods,
-        "latest": periods[-1] if periods else None,
+        "latest": latest,
         "groups": GROUPS,
         "metrics": METRICS,
         "volume_keys": VOLUME_KEYS,
         "series_breaks": SERIES_BREAKS,
-        "entities": sorted(ent_meta.values(), key=lambda e: e["code"]),
+        "entities": sorted(activas, key=lambda e: e["code"]),
     }
     with open(DATA_DIR / "index.json", "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"entidades activas en el índice: {len(activas)} de {len(ent_meta)} históricas")
     return index
 
 
