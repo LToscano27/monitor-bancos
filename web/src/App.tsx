@@ -34,6 +34,12 @@ function Shell() {
             <circle cx="26" cy="8" r="2.6" fill="#33d69f" />
           </svg>
           Monitor Bancos
+          {/* bandera argentina en SVG (el emoji 🇦🇷 no se renderiza en Windows) */}
+          <svg width="21" height="15" viewBox="0 0 21 15" style={{ borderRadius: 2.5, flexShrink: 0 }}>
+            <rect width="21" height="15" fill="#74ACDF" />
+            <rect y="5" width="21" height="5" fill="#ffffff" />
+            <circle cx="10.5" cy="7.5" r="1.8" fill="#F6B40E" stroke="#c69310" strokeWidth="0.4" />
+          </svg>
         </NavLink>
         <NavLink to="/" end className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Sistema</NavLink>
         <NavLink to="/ranking" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Ranking</NavLink>

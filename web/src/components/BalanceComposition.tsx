@@ -13,6 +13,8 @@ const COLORS = [
 interface Slice {
   label: string;
   value: number;
+  /** nunca agrupar esta porción dentro de "Otros" (p.ej. el split de títulos) */
+  keep?: boolean;
 }
 
 /** Rubros nivel 1 bajo un encabezado nivel 0 dado ("A C T I V O" / "P A S I V O"). */
@@ -37,16 +39,17 @@ function buildSlices(items: BalanceItem[], titulos?: EntityMeta["titulos"]): Sli
     if (i >= 0) {
       const otros = titulos.otros ?? 0;
       slices.splice(i, 1,
-        { label: "Títulos públicos", value: titulos.publicos + otros },
-        { label: "Títulos privados", value: titulos.privados },
+        { label: "Títulos públicos", value: titulos.publicos + otros, keep: true },
+        { label: "Títulos privados", value: titulos.privados, keep: true },
       );
     }
   }
   slices.sort((a, b) => b.value - a.value);
-  // agrupar rubros menores al 2,5% para que el gráfico respire
+  // agrupar rubros menores al 2,5% para que el gráfico respire (el split de títulos
+  // nunca se agrupa: es justamente el detalle que se quiere ver)
   const total = slices.reduce((s, x) => s + x.value, 0);
-  const grandes = slices.filter((s) => s.value / total >= 0.025);
-  const resto = slices.filter((s) => s.value / total < 0.025);
+  const grandes = slices.filter((s) => s.keep || s.value / total >= 0.025);
+  const resto = slices.filter((s) => !s.keep && s.value / total < 0.025);
   if (resto.length > 1) {
     grandes.push({ label: "Otros rubros", value: resto.reduce((s, x) => s + x.value, 0) });
     return grandes;
