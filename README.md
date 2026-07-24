@@ -53,3 +53,23 @@ python pipeline/update.py
 
 Los 7z crudos se cachean en `%LOCALAPPDATA%\bcra-raw-cache` (o `$BCRA_CACHE_DIR`) para no
 redescargar en re-corridas.
+
+## Frontend
+
+```bash
+cd web
+npm install
+npm run dev     # sincroniza data/ -> public/data y levanta Vite en :5173
+npm run build   # build estático en web/dist
+```
+
+Deploy en Vercel: root directory `web/`, framework Vite, sin variables de entorno. El build
+copia `../data` a `public/data`, así que cada commit de datos redeploya el sitio actualizado.
+
+## Datos conocidos del histórico
+
+- Meses que el BCRA nunca publicó: **2013-05, 2014-03, 2020-07** (huecos reales de la fuente).
+- En 2019-08/10, 2021-02/04 y 2024-10 el agregado AA000 difiere de la suma de entidades por
+  0,2-0,9% en el propio dato publicado; el sitio usa siempre el AA000 oficial.
+- En 2019-01 (y meses cercanos) personal/plazos fijos/operaciones vienen en 0 a nivel entidad.
+- Inflación acumulada jul-2011 → abr-2026 del IPC empalmado: ~x487.
