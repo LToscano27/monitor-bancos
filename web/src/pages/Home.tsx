@@ -121,9 +121,7 @@ export default function Home() {
         <div className="kpis big4">{KPI_MONEY.map((k) => kpiCard(k))}</div>
         <div className="kpis sm5">
           {kpiCard("mora", true)}
-          {kpiCard("a14", false, "Cobertura de la mora")}
           {kpiCard("roe")}
-          {kpiCard("roa")}
           <Kpi
             label="Préstamos / Depósitos"
             unit="pct"
@@ -131,6 +129,8 @@ export default function Home() {
             prevMonth={idxPrevMonth >= 0 ? pdSeries[idxPrevMonth] : null}
             prevYear={idxPrevYear >= 0 ? pdSeries[idxPrevYear] : null}
           />
+          {kpiCard("r8", false, "Tasa implícita préstamos")}
+          {kpiCard("r9", false, "Tasa implícita depósitos")}
         </div>
         {real && (
           <div className="note" style={{ marginTop: 10 }}>
