@@ -7,6 +7,7 @@ import Ranking from "./pages/Ranking";
 import Series from "./pages/Series";
 import Comparar from "./pages/Comparar";
 import Entidad from "./pages/Entidad";
+import Metodologia from "./pages/Metodologia";
 
 function ThemeToggle() {
   const { theme, toggle } = useTheme();
@@ -52,6 +53,7 @@ function Shell() {
           <NavLink to="/ranking" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Ranking</NavLink>
           <NavLink to="/series" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Series</NavLink>
           <NavLink to="/comparar" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Comparar</NavLink>
+          <NavLink to="/metodologia" className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>Metodología</NavLink>
         </div>
       </nav>
       <div className="wrap">
@@ -61,6 +63,7 @@ function Shell() {
           <Route path="/series" element={<Series />} />
           <Route path="/comparar" element={<Comparar />} />
           <Route path="/entidad/:code" element={<Entidad />} />
+          <Route path="/metodologia" element={<Metodologia />} />
         </Routes>
         <footer>
           Fuente: BCRA — Información de Entidades Financieras (directorio IEF). Montos en miles de
