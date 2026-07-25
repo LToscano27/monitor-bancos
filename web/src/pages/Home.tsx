@@ -13,10 +13,6 @@ import { chartColors, useTheme } from "../lib/theme";
 import type { EntityMeta } from "../lib/types";
 
 const KPI_MONEY = ["activo", "depositos", "prestamos", "patrimonio"];
-const KPI_RATIOS: { key: string; invert?: boolean }[] = [
-  { key: "mora", invert: true }, { key: "roe" }, { key: "roa" }, { key: "liquidez" },
-  { key: "personal" },
-];
 
 export default function Home() {
   const { index, system, ipc } = useCore();
@@ -74,13 +70,13 @@ export default function Home() {
     };
   }, [system, last]);
 
-  const kpiCard = (key: string, invert?: boolean) => {
+  const kpiCard = (key: string, invert?: boolean, labelOverride?: string) => {
     const def = index.metrics[key];
     const s = aa000(key);
     return (
       <Kpi
         key={key}
-        label={def.label}
+        label={labelOverride ?? def.label}
         unit={def.unit}
         value={s[last] ?? null}
         prevMonth={idxPrevMonth >= 0 ? s[idxPrevMonth] : null}
@@ -89,6 +85,13 @@ export default function Home() {
       />
     );
   };
+
+  // Préstamos / Depósitos del sistema (derivado; ratio sin unidad → igual en nominal o real)
+  const pdSeries = useMemo(() => {
+    const pr = system.groups.AA000?.prestamos ?? [];
+    const dep = system.groups.AA000?.depositos ?? [];
+    return pr.map((v, i) => (v != null && dep[i]) ? (100 * v) / (dep[i] as number) : null);
+  }, [system]);
 
   const breakNote = index.series_breaks[metric];
 
@@ -116,7 +119,19 @@ export default function Home() {
       <section>
         <p className="stitle">Totales del sistema · variación intermensual e interanual</p>
         <div className="kpis big4">{KPI_MONEY.map((k) => kpiCard(k))}</div>
-        <div className="kpis sm5">{KPI_RATIOS.map(({ key, invert }) => kpiCard(key, invert))}</div>
+        <div className="kpis sm5">
+          {kpiCard("mora", true)}
+          {kpiCard("a14", false, "Cobertura de la mora")}
+          {kpiCard("roe")}
+          {kpiCard("roa")}
+          <Kpi
+            label="Préstamos / Depósitos"
+            unit="pct"
+            value={pdSeries[last] ?? null}
+            prevMonth={idxPrevMonth >= 0 ? pdSeries[idxPrevMonth] : null}
+            prevYear={idxPrevYear >= 0 ? pdSeries[idxPrevYear] : null}
+          />
+        </div>
         {real && (
           <div className="note" style={{ marginTop: 10 }}>
             Montos expresados en pesos constantes de {periodLabel(latest, true)} (deflactados por IPC
