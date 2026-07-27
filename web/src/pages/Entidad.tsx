@@ -135,8 +135,7 @@ export default function Entidad() {
           <div className="card">
             <h3>Composición del balance</h3>
             <div className="cs">
-              {periodLabel(meta.period, true)} · rubros del balance resumido · títulos separados según
-              el balance detallado
+              {periodLabel(meta.period, true)} · rubros del balance resumido
             </div>
             <BalanceComposition meta={meta} />
           </div>

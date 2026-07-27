@@ -170,8 +170,7 @@ export default function Home() {
               <div>
                 <h3>Composición del balance</h3>
                 <div className="cs">
-                  Rubros del balance resumido · {periodLabel(compMeta.period, true)} · títulos separados
-                  según el balance detallado
+                  Rubros del balance resumido · {periodLabel(compMeta.period, true)}
                 </div>
               </div>
               <Seg
@@ -216,7 +215,7 @@ export default function Home() {
             <table>
               <thead>
                 <tr>
-                  <th className="n">Grupo</th><th>Share activo</th><th>ROE</th><th>ROA</th><th>Mora</th><th>Liquidez</th>
+                  <th className="n" style={{ fontWeight: 700 }}>Grupo</th><th style={{ fontWeight: 700 }}>Share activo</th><th style={{ fontWeight: 700 }}>ROE</th><th style={{ fontWeight: 700 }}>ROA</th><th style={{ fontWeight: 700 }}>Mora</th><th style={{ fontWeight: 700 }}>Liquidez</th>
                 </tr>
               </thead>
               <tbody>
@@ -227,7 +226,7 @@ export default function Home() {
                   const roe = gs.roe?.[last];
                   return (
                     <tr key={g}>
-                      <td className="n">{g === "AA000" ? <b>SISTEMA</b> : GROUP_LABELS[g]}</td>
+                      <td className="n">{g === "AA000" ? "SISTEMA" : GROUP_LABELS[g]}</td>
                       <td>{num(share, 1)}%</td>
                       <td className={(roe ?? 0) >= 0 ? "pos" : "neg"}>{pct(roe)}</td>
                       <td>{pct(gs.roa?.[last])}</td>

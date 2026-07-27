@@ -63,7 +63,9 @@ function CompositionDonut({ title, slices }: { title: string; slices: Slice[] })
   const total = slices.reduce((s, x) => s + x.value, 0);
   return (
     <div>
-      <div className="cs" style={{ marginBottom: 4 }}>{title} · {money(total)}</div>
+      <div className="cs" style={{ marginBottom: 4 }}>
+        <b style={{ color: "var(--txt)" }}>{title}</b> · {money(total)}
+      </div>
       <div className="chartbox xs">
         <Doughnut
           data={{
