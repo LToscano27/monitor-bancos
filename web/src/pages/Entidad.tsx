@@ -8,12 +8,8 @@ import { money, num, PALETTE, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
 import type { EntityMeta, EntitySeries } from "../lib/types";
 
-// mismo layout que la home: 4 montos grandes + 5 ratios/estructura chicos
+// mismos indicadores que la home: 4 montos grandes + 5 ratios chicos
 const KPI_MONEY = ["activo", "depositos", "prestamos", "patrimonio"];
-const KPI_RATIOS: { key: string; invert?: boolean }[] = [
-  { key: "mora", invert: true }, { key: "roe" }, { key: "roa" }, { key: "liquidez" },
-  { key: "personal" },
-];
 
 const GRUPO_LABEL: Record<string, string> = {
   publico: "Banco público",
@@ -53,6 +49,26 @@ export default function Entidad() {
   const base = lastIdx >= 0 ? periods[lastIdx] : null;
   const iPm = base ? periods.indexOf(shiftPeriod(base, -1)) : -1;
   const iPy = base ? periods.indexOf(shiftPeriod(base, -12)) : -1;
+
+  const kpiCard = (key: string, invert?: boolean, labelOverride?: string) => {
+    const s = ent.m[key] ?? [];
+    return (
+      <Kpi
+        key={key}
+        label={labelOverride ?? index.metrics[key].label}
+        unit={index.metrics[key].unit}
+        value={lastIdx >= 0 ? s[lastIdx] ?? null : null}
+        prevMonth={iPm >= 0 ? s[iPm] : null}
+        prevYear={iPy >= 0 ? s[iPy] : null}
+        invert={invert}
+      />
+    );
+  };
+
+  // Préstamos / Depósitos de la entidad (derivado; null si no toma depósitos)
+  const pr = ent.m.prestamos ?? [];
+  const dep = ent.m.depositos ?? [];
+  const pd = (i: number) => (i >= 0 && pr[i] != null && dep[i]) ? (100 * (pr[i] as number)) / (dep[i] as number) : null;
 
   return (
     <>
@@ -97,36 +113,19 @@ export default function Entidad() {
         <p className="stitle">
           Indicadores · {base ? periodLabel(base, true) : "—"} · variación m/m e interanual
         </p>
-        <div className="kpis big4">
-          {KPI_MONEY.map((key) => {
-            const s = ent.m[key] ?? [];
-            return (
-              <Kpi
-                key={key}
-                label={index.metrics[key].label}
-                unit={index.metrics[key].unit}
-                value={lastIdx >= 0 ? s[lastIdx] ?? null : null}
-                prevMonth={iPm >= 0 ? s[iPm] : null}
-                prevYear={iPy >= 0 ? s[iPy] : null}
-              />
-            );
-          })}
-        </div>
+        <div className="kpis big4">{KPI_MONEY.map((k) => kpiCard(k))}</div>
         <div className="kpis sm5">
-          {KPI_RATIOS.map(({ key, invert }) => {
-            const s = ent.m[key] ?? [];
-            return (
-              <Kpi
-                key={key}
-                label={index.metrics[key].label}
-                unit={index.metrics[key].unit}
-                value={lastIdx >= 0 ? s[lastIdx] ?? null : null}
-                prevMonth={iPm >= 0 ? s[iPm] : null}
-                prevYear={iPy >= 0 ? s[iPy] : null}
-                invert={invert}
-              />
-            );
-          })}
+          {kpiCard("mora", true)}
+          {kpiCard("roe")}
+          <Kpi
+            label="Préstamos / Depósitos"
+            unit="pct"
+            value={pd(lastIdx)}
+            prevMonth={pd(iPm)}
+            prevYear={pd(iPy)}
+          />
+          {kpiCard("r8", false, "Tasa implícita préstamos")}
+          {kpiCard("r9", false, "Tasa implícita depósitos")}
         </div>
       </section>
 
