@@ -1,5 +1,6 @@
 import type {
-  DataIndex, EntityMeta, EntitySeries, IpcData, PeriodData, SystemSeries,
+  CompositionMeta, CompositionSeries, DataIndex, EntityMeta, EntitySeries,
+  IpcData, PeriodData, SystemSeries,
 } from "./types";
 
 const cache = new Map<string, Promise<unknown>>();
@@ -22,3 +23,7 @@ export const loadEntity = (code: string) => fetchJson<EntitySeries>(`/data/serie
 export const loadPeriod = (p: string) => fetchJson<PeriodData>(`/data/periods/${p}.json`);
 export const loadIpc = () => fetchJson<IpcData>("/data/ipc.json");
 export const loadMeta = (code: string) => fetchJson<EntityMeta>(`/data/meta/${code}.json`);
+export const loadComposition = (code: string) =>
+  fetchJson<CompositionSeries>(`/data/composition/${code}.json`);
+export const loadCompositionMeta = () =>
+  fetchJson<CompositionMeta>("/data/composition_meta.json");

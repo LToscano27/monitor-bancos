@@ -51,6 +51,19 @@ export interface PeriodData {
   agregados: Record<string, PeriodRow>;
 }
 
+export interface CompositionSeries {
+  code: string;
+  periods: string[];
+  m: Record<string, (number | null)[]>;
+}
+
+export interface CompositionMeta {
+  labels: Record<string, string>;
+  sections: Record<string, "activo" | "pasivo">;
+  keys_activo: string[];
+  keys_pasivo: string[];
+}
+
 export interface IpcData {
   base: string;
   latest: string;

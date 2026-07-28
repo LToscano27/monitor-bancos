@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import CompositionChart from "../components/CompositionChart";
 import EntityPicker from "../components/EntityPicker";
 import Seg from "../components/Seg";
 import TimeSeriesChart from "../components/TimeSeriesChart";
-import { loadEntity } from "../lib/data";
+import { loadComposition, loadCompositionMeta, loadEntity } from "../lib/data";
 import { deflateSeries } from "../lib/deflate";
 import {
-  delta, fmtValue, GROUP_LABELS, isMoney, PALETTE, periodLabel, shiftPeriod, shortName,
+  delta, fmtValue, GROUP_LABELS, isMoney, num, PALETTE, periodLabel, shiftPeriod, shortName,
 } from "../lib/format";
 import { useCore } from "../lib/store";
-import type { MetricUnit, Series as SeriesMap } from "../lib/types";
+import type {
+  CompositionMeta, CompositionSeries, MetricUnit, Series as SeriesMap,
+} from "../lib/types";
 
 // métricas donde un aumento es "malo" (para colorear la variación de forma intuitiva)
 const LOWER_IS_BETTER = new Set(["mora", "a11", "a16", "a17", "ag3", "rg3", "rg5", "e1", "c2", "c3"]);
@@ -55,6 +58,9 @@ export default function Series() {
   const [sel, setSel] = useState("AA000"); // selección única: código de grupo (AA###) o de entidad
   const [entSeries, setEntSeries] = useState<Record<string, SeriesMap>>({});
   const [mode, setMode] = useState<"nominal" | "real">("nominal");
+  const [view, setView] = useState<"indicador" | "composicion">("indicador");
+  const [compo, setCompo] = useState<CompositionSeries | null>(null);
+  const [compoMeta, setCompoMeta] = useState<CompositionMeta | null>(null);
 
   const def = index.metrics[metric];
   const money = isMoney(def.unit);
@@ -66,6 +72,13 @@ export default function Series() {
       loadEntity(sel).then((e) => setEntSeries((p) => ({ ...p, [sel]: e.m }))).catch(() => {});
     }
   }, [sel, entSeries]);
+
+  useEffect(() => {
+    if (view !== "composicion") return;
+    if (!compoMeta) loadCompositionMeta().then(setCompoMeta).catch(() => {});
+    setCompo(null);
+    loadComposition(sel).then(setCompo).catch(() => setCompo(null));
+  }, [view, sel, compoMeta]);
 
   const isGroup = sel.startsWith("AA");
   const srcSeries: SeriesMap | undefined = isGroup ? system.groups[sel] : entSeries[sel];
@@ -94,6 +107,45 @@ export default function Series() {
   const breakNote = index.series_breaks[metric];
   const color = isGroup && sel === "AA000" ? "#8a97b2" : PALETTE[0];
 
+  // --- composición del activo: participación de cada rubro, mes a mes ---
+  const compoView = useMemo(() => {
+    if (!compo || !compoMeta) return null;
+    // se usa el split de títulos (públicos/privados) y se descarta el rubro combinado
+    const keys = compoMeta.keys_activo.filter((k) => k !== "titulos");
+    const n = compo.periods.length;
+    const totales = Array.from({ length: n }, (_, i) =>
+      keys.reduce((s, k) => s + (compo.m[k]?.[i] ?? 0), 0));
+    const shareDe = (k: string) =>
+      Array.from({ length: n }, (_, i) =>
+        totales[i] > 0 && compo.m[k]?.[i] != null ? (100 * (compo.m[k]![i] as number)) / totales[i] : null);
+
+    const shares = keys.map((k) => ({ key: k, label: compoMeta.labels[k] ?? k, values: shareDe(k) }));
+    const pico = (vals: (number | null)[]) => Math.max(...vals.map((v) => v ?? 0));
+    // rubros chicos (siempre por debajo del 2% del activo) se agrupan para que el gráfico se lea
+    const grandes = shares.filter((s) => pico(s.values) >= 2);
+    const chicos = shares.filter((s) => pico(s.values) < 2);
+    const ordenados = grandes.sort((a, b) => (b.values[n - 1] ?? 0) - (a.values[n - 1] ?? 0));
+    const series = ordenados.map((s, i) => ({
+      label: s.label,
+      values: s.values,
+      color: s.key === "titulos_publicos" ? "#33d69f"
+        : s.key === "prestamos" ? "#4da3ff"
+        : PALETTE[(i + 2) % PALETTE.length],
+    }));
+    if (chicos.length) {
+      series.push({
+        label: "Otros rubros",
+        values: Array.from({ length: n }, (_, i) =>
+          chicos.reduce((s, c) => s + (c.values[i] ?? 0), 0)),
+        color: "#8a97b2",
+      });
+    }
+    // último período con datos de composición
+    let last = -1;
+    for (let i = n - 1; i >= 0; i--) if (totales[i] > 0) { last = i; break; }
+    return { series, ordenados, last, periods: compo.periods };
+  }, [compo, compoMeta]);
+
   return (
     <>
       <h1 className="pagetitle">Series históricas</h1>
@@ -103,12 +155,22 @@ export default function Series() {
       </div>
 
       <div className="controls">
-        <select value={metric} onChange={(e) => setMetric(e.target.value)}>
-          {Object.entries(index.metrics).map(([k, m]) => (
-            <option key={k} value={k}>{m.label}</option>
-          ))}
-        </select>
-        {money && (
+        <Seg
+          options={[
+            { value: "indicador", label: "Indicador" },
+            { value: "composicion", label: "Composición del activo" },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+        {view === "indicador" && (
+          <select value={metric} onChange={(e) => setMetric(e.target.value)}>
+            {Object.entries(index.metrics).map(([k, m]) => (
+              <option key={k} value={k}>{m.label}</option>
+            ))}
+          </select>
+        )}
+        {view === "indicador" && money && (
           <Seg
             options={[
               { value: "nominal", label: "$ corrientes" },
@@ -133,6 +195,55 @@ export default function Series() {
         </span>
       </div>
 
+      {view === "composicion" ? (
+        <div className="serieswrap">
+          <div className="card">
+            <h3>Composición del activo · {nameOf(sel)}</h3>
+            <div className="cs">
+              Participación de cada rubro en el activo, mes a mes. Al ser porcentajes, la inflación
+              no distorsiona la serie.
+            </div>
+            {!compoView ? (
+              <div className="loading">Cargando composición…</div>
+            ) : (
+              <CompositionChart periods={compoView.periods} series={compoView.series} />
+            )}
+          </div>
+
+          <div className="sidecards">
+            {compoView && compoView.last >= 0 && compoView.ordenados.slice(0, 4).map((r) => {
+              const i = compoView.last;
+              const p = compoView.periods;
+              const iPmC = p.indexOf(shiftPeriod(p[i], -1));
+              const iPyC = p.indexOf(shiftPeriod(p[i], -12));
+              const dPm = iPmC >= 0 && r.values[iPmC] != null ? (r.values[i]! - r.values[iPmC]!) : null;
+              const dPy = iPyC >= 0 && r.values[iPyC] != null ? (r.values[i]! - r.values[iPyC]!) : null;
+              const tag = (lbl: string, d: number | null) =>
+                d == null ? null : (
+                  <span>
+                    <span className="mut">{lbl} </span>
+                    <b className={d > 0.05 ? "pos" : d < -0.05 ? "neg" : "mut"}>
+                      {(d >= 0 ? "+" : "") + num(d, 1)} pp
+                    </b>
+                  </span>
+                );
+              return (
+                <div className="kpi" key={r.key}>
+                  <div className="l">{r.label}</div>
+                  <div className="v">{num(r.values[i], 1)}%</div>
+                  <div className="deltas">{tag("m/m", dPm)}{tag("i.a.", dPy)}</div>
+                </div>
+              );
+            })}
+            {compoView && compoView.last >= 0 && (
+              <div className="u mut" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                % del activo en {periodLabel(compoView.periods[compoView.last], true)}. Los títulos se
+                abren en públicos y privados según el balance detallado.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="serieswrap">
         <div className="card">
           <h3>{def.label} · {nameOf(sel)}</h3>
@@ -187,6 +298,7 @@ export default function Series() {
           )}
         </div>
       </div>
+      )}
     </>
   );
 }
