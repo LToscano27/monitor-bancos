@@ -59,6 +59,7 @@ export default function Series() {
   const [entSeries, setEntSeries] = useState<Record<string, SeriesMap>>({});
   const [mode, setMode] = useState<"nominal" | "real">("nominal");
   const [view, setView] = useState<"indicador" | "composicion">("indicador");
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [compo, setCompo] = useState<CompositionSeries | null>(null);
   const [compoMeta, setCompoMeta] = useState<CompositionMeta | null>(null);
 
@@ -206,41 +207,62 @@ export default function Series() {
             {!compoView ? (
               <div className="loading">Cargando composición…</div>
             ) : (
-              <CompositionChart periods={compoView.periods} series={compoView.series} />
+              <CompositionChart
+                periods={compoView.periods}
+                series={compoView.series}
+                onHoverIndex={setHoverIdx}
+              />
             )}
           </div>
 
           <div className="sidecards">
-            {compoView && compoView.last >= 0 && compoView.ordenados.slice(0, 4).map((r) => {
-              const i = compoView.last;
+            {compoView && compoView.last >= 0 && (() => {
               const p = compoView.periods;
-              const iPmC = p.indexOf(shiftPeriod(p[i], -1));
-              const iPyC = p.indexOf(shiftPeriod(p[i], -12));
-              const dPm = iPmC >= 0 && r.values[iPmC] != null ? (r.values[i]! - r.values[iPmC]!) : null;
-              const dPy = iPyC >= 0 && r.values[iPyC] != null ? (r.values[i]! - r.values[iPyC]!) : null;
-              const tag = (lbl: string, d: number | null) =>
-                d == null ? null : (
-                  <span>
-                    <span className="mut">{lbl} </span>
-                    <b className={d > 0.05 ? "pos" : d < -0.05 ? "neg" : "mut"}>
-                      {(d >= 0 ? "+" : "") + num(d, 1)} pp
-                    </b>
-                  </span>
-                );
+              const i = hoverIdx != null && compoView.series[0]?.values[hoverIdx] != null
+                ? hoverIdx : compoView.last;
+              const iPm = p.indexOf(shiftPeriod(p[i], -1));
               return (
-                <div className="kpi" key={r.key}>
-                  <div className="l">{r.label}</div>
-                  <div className="v">{num(r.values[i], 1)}%</div>
-                  <div className="deltas">{tag("m/m", dPm)}{tag("i.a.", dPy)}</div>
+                <div className="card" style={{ padding: "13px 15px" }}>
+                  <div className="l" style={{ color: "var(--mut)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".6px" }}>
+                    {hoverIdx != null ? "Mes señalado" : "Último dato"}
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 680, margin: "4px 0 10px" }}>
+                    {periodLabel(p[i], true)}
+                  </div>
+                  <table style={{ fontSize: 12 }}>
+                    <tbody>
+                      {compoView.series.map((s) => {
+                        const v = s.values[i];
+                        const d = iPm >= 0 && v != null && s.values[iPm] != null ? v - s.values[iPm]! : null;
+                        return (
+                          <tr key={s.label}>
+                            <td className="n" style={{ padding: "4px 0", lineHeight: 1.25 }}>
+                              <span style={{ color: s.color, marginRight: 6 }}>●</span>
+                              {s.label}
+                            </td>
+                            <td style={{ padding: "4px 0 4px 6px", fontWeight: 650, whiteSpace: "nowrap" }}>
+                              {num(v, 1)}%
+                            </td>
+                            <td style={{ padding: "4px 0 4px 6px", whiteSpace: "nowrap", fontSize: 11 }}>
+                              {d == null ? "" : (
+                                <span className={d > 0.05 ? "pos" : d < -0.05 ? "neg" : "mut"}>
+                                  {(d >= 0 ? "+" : "") +
+                                    d.toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="mut" style={{ fontSize: 10.5, marginTop: 8, lineHeight: 1.45 }}>
+                    % del activo · la tercera columna es la variación en puntos contra el mes anterior.
+                    Pasá el cursor por el gráfico para ver cualquier mes.
+                  </div>
                 </div>
               );
-            })}
-            {compoView && compoView.last >= 0 && (
-              <div className="u mut" style={{ fontSize: 11, lineHeight: 1.5 }}>
-                % del activo en {periodLabel(compoView.periods[compoView.last], true)}. Los títulos se
-                abren en públicos y privados según el balance detallado.
-              </div>
-            )}
+            })()}
           </div>
         </div>
       ) : (
