@@ -24,6 +24,20 @@ const GROUP_OPTS = [
   { code: "AA110", label: "Bancos públicos" },
 ];
 
+// opciones de composición: se eligen desde el mismo desplegable que los indicadores
+const COMPO_OPTS = {
+  __compo_activo: { seccion: "activo" as const, label: "Composición del activo" },
+  __compo_pasivo: { seccion: "pasivo" as const, label: "Composición del pasivo" },
+};
+
+// colores fijos para los rubros protagonistas de cada sección
+const RUBRO_COLOR: Record<string, string> = {
+  prestamos: "#4da3ff",
+  titulos_publicos: "#33d69f",
+  depositos: "#4da3ff",
+  otras_obligaciones: "#33d69f",
+};
+
 function StatCard({ label, sub, unit, value, prev, invert, variation }: {
   label: string; sub: string; unit: MetricUnit;
   value: number | null; prev: number | null; invert?: boolean; variation?: boolean;
@@ -58,13 +72,15 @@ export default function Series() {
   const [sel, setSel] = useState("AA000"); // selección única: código de grupo (AA###) o de entidad
   const [entSeries, setEntSeries] = useState<Record<string, SeriesMap>>({});
   const [mode, setMode] = useState<"nominal" | "real">("nominal");
-  const [view, setView] = useState<"indicador" | "composicion">("indicador");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [compo, setCompo] = useState<CompositionSeries | null>(null);
   const [compoMeta, setCompoMeta] = useState<CompositionMeta | null>(null);
 
-  const def = index.metrics[metric];
-  const money = isMoney(def.unit);
+  // la composición es una opción más del desplegable, no un indicador del BCRA
+  const compoOpt = COMPO_OPTS[metric as keyof typeof COMPO_OPTS];
+  const seccion = compoOpt?.seccion ?? null;
+  const def = seccion ? null : index.metrics[metric];
+  const money = def ? isMoney(def.unit) : false;
   const canReal = money && ipc != null;
   const real = mode === "real" && canReal;
 
@@ -75,11 +91,11 @@ export default function Series() {
   }, [sel, entSeries]);
 
   useEffect(() => {
-    if (view !== "composicion") return;
+    if (!seccion) return;
     if (!compoMeta) loadCompositionMeta().then(setCompoMeta).catch(() => {});
     setCompo(null);
     loadComposition(sel).then(setCompo).catch(() => setCompo(null));
-  }, [view, sel, compoMeta]);
+  }, [seccion, sel, compoMeta]);
 
   const isGroup = sel.startsWith("AA");
   const srcSeries: SeriesMap | undefined = isGroup ? system.groups[sel] : entSeries[sel];
@@ -88,11 +104,12 @@ export default function Series() {
 
   // valores mostrados (deflactados si corresponde)
   const values = useMemo(() => {
+    if (seccion) return [];
     let v = srcSeries?.[metric] ?? [];
     if (real && ipc) v = deflateSeries(v, periods, ipc, refPeriod);
     return v;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [srcSeries, metric, real, ipc, periods, refPeriod]);
+  }, [srcSeries, metric, seccion, real, ipc, periods, refPeriod]);
 
   // último período con dato para esta selección
   const lastIdx = useMemo(() => {
@@ -108,11 +125,12 @@ export default function Series() {
   const breakNote = index.series_breaks[metric];
   const color = isGroup && sel === "AA000" ? "#8a97b2" : PALETTE[0];
 
-  // --- composición del activo: participación de cada rubro, mes a mes ---
+  // --- composición: participación de cada rubro en el total de la sección, mes a mes ---
   const compoView = useMemo(() => {
-    if (!compo || !compoMeta) return null;
-    // se usa el split de títulos (públicos/privados) y se descarta el rubro combinado
-    const keys = compoMeta.keys_activo.filter((k) => k !== "titulos");
+    if (!compo || !compoMeta || !seccion) return null;
+    // en el activo se usa el split de títulos y se descarta el rubro combinado
+    const keys = (seccion === "activo" ? compoMeta.keys_activo : compoMeta.keys_pasivo)
+      .filter((k) => k !== "titulos");
     const n = compo.periods.length;
     const totales = Array.from({ length: n }, (_, i) =>
       keys.reduce((s, k) => s + (compo.m[k]?.[i] ?? 0), 0));
@@ -122,16 +140,14 @@ export default function Series() {
 
     const shares = keys.map((k) => ({ key: k, label: compoMeta.labels[k] ?? k, values: shareDe(k) }));
     const pico = (vals: (number | null)[]) => Math.max(...vals.map((v) => v ?? 0));
-    // rubros chicos (siempre por debajo del 2% del activo) se agrupan para que el gráfico se lea
+    // rubros chicos (siempre por debajo del 2%) se agrupan para que el gráfico se lea
     const grandes = shares.filter((s) => pico(s.values) >= 2);
     const chicos = shares.filter((s) => pico(s.values) < 2);
     const ordenados = grandes.sort((a, b) => (b.values[n - 1] ?? 0) - (a.values[n - 1] ?? 0));
     const series = ordenados.map((s, i) => ({
       label: s.label,
       values: s.values,
-      color: s.key === "titulos_publicos" ? "#33d69f"
-        : s.key === "prestamos" ? "#4da3ff"
-        : PALETTE[(i + 2) % PALETTE.length],
+      color: RUBRO_COLOR[s.key] ?? PALETTE[(i + 2) % PALETTE.length],
     }));
     if (chicos.length) {
       series.push({
@@ -144,8 +160,8 @@ export default function Series() {
     // último período con datos de composición
     let last = -1;
     for (let i = n - 1; i >= 0; i--) if (totales[i] > 0) { last = i; break; }
-    return { series, ordenados, last, periods: compo.periods };
-  }, [compo, compoMeta]);
+    return { series, last, periods: compo.periods };
+  }, [compo, compoMeta, seccion]);
 
   return (
     <>
@@ -156,22 +172,19 @@ export default function Series() {
       </div>
 
       <div className="controls">
-        <Seg
-          options={[
-            { value: "indicador", label: "Indicador" },
-            { value: "composicion", label: "Composición del activo" },
-          ]}
-          value={view}
-          onChange={setView}
-        />
-        {view === "indicador" && (
-          <select value={metric} onChange={(e) => setMetric(e.target.value)}>
+        <select value={metric} onChange={(e) => { setMetric(e.target.value); setHoverIdx(null); }}>
+          <optgroup label="Composición del balance">
+            {Object.entries(COMPO_OPTS).map(([k, o]) => (
+              <option key={k} value={k}>{o.label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="Indicadores">
             {Object.entries(index.metrics).map(([k, m]) => (
               <option key={k} value={k}>{m.label}</option>
             ))}
-          </select>
-        )}
-        {view === "indicador" && money && (
+          </optgroup>
+        </select>
+        {money && (
           <Seg
             options={[
               { value: "nominal", label: "$ corrientes" },
@@ -196,12 +209,12 @@ export default function Series() {
         </span>
       </div>
 
-      {view === "composicion" ? (
+      {seccion ? (
         <div className="serieswrap">
           <div className="card">
-            <h3>Composición del activo · {nameOf(sel)}</h3>
+            <h3>{compoOpt.label} · {nameOf(sel)}</h3>
             <div className="cs">
-              Participación de cada rubro en el activo, mes a mes. Al ser porcentajes, la inflación
+              Participación de cada rubro en el {seccion}, mes a mes. Al ser porcentajes, la inflación
               no distorsiona la serie.
             </div>
             {!compoView ? (
@@ -220,7 +233,7 @@ export default function Series() {
               const p = compoView.periods;
               const i = hoverIdx != null && compoView.series[0]?.values[hoverIdx] != null
                 ? hoverIdx : compoView.last;
-              const iPm = p.indexOf(shiftPeriod(p[i], -1));
+              const iPmC = p.indexOf(shiftPeriod(p[i], -1));
               return (
                 <div className="card" style={{ padding: "13px 15px" }}>
                   <div className="l" style={{ color: "var(--mut)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".6px" }}>
@@ -233,7 +246,7 @@ export default function Series() {
                     <tbody>
                       {compoView.series.map((s) => {
                         const v = s.values[i];
-                        const d = iPm >= 0 && v != null && s.values[iPm] != null ? v - s.values[iPm]! : null;
+                        const d = iPmC >= 0 && v != null && s.values[iPmC] != null ? v - s.values[iPmC]! : null;
                         return (
                           <tr key={s.label}>
                             <td className="n" style={{ padding: "4px 0", lineHeight: 1.25 }}>
@@ -246,8 +259,9 @@ export default function Series() {
                             <td style={{ padding: "4px 0 4px 6px", whiteSpace: "nowrap", fontSize: 11 }}>
                               {d == null ? "" : (
                                 <span className={d > 0.05 ? "pos" : d < -0.05 ? "neg" : "mut"}>
-                                  {(d >= 0 ? "+" : "") +
-                                    d.toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                  {(Math.abs(d) < 0.05 ? "" : d > 0 ? "+" : "") +
+                                    (Math.abs(d) < 0.05 ? 0 : d)
+                                      .toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                 </span>
                               )}
                             </td>
@@ -257,15 +271,15 @@ export default function Series() {
                     </tbody>
                   </table>
                   <div className="mut" style={{ fontSize: 10.5, marginTop: 8, lineHeight: 1.45 }}>
-                    % del activo · la tercera columna es la variación en puntos contra el mes anterior.
-                    Pasá el cursor por el gráfico para ver cualquier mes.
+                    % del {seccion} · la tercera columna es la variación en puntos contra el mes
+                    anterior. Pasá el cursor por el gráfico para ver cualquier mes.
                   </div>
                 </div>
               );
             })()}
           </div>
         </div>
-      ) : (
+      ) : def ? (
       <div className="serieswrap">
         <div className="card">
           <h3>{def.label} · {nameOf(sel)}</h3>
@@ -320,7 +334,7 @@ export default function Series() {
           )}
         </div>
       </div>
-      )}
+      ) : null}
     </>
   );
 }
