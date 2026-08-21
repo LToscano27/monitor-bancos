@@ -47,6 +47,11 @@ def main() -> int:
     build_series.build()
     build_meta.build(new[-1])
     try:
+        import build_composition
+        build_composition.build()
+    except Exception as e:  # la composición es un extra: no debe frenar la actualización
+        print(f"aviso: actualización de composición falló: {e}", file=sys.stderr)
+    try:
         import ipc
         ipc.build()
     except Exception as e:  # el IPC no debe frenar la actualización de datos BCRA
