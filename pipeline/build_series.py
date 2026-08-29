@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from parse import MODERN_KEYS, SERIES_BREAKS, VOLUME_KEYS
+from parse import AJUSTE_INFLACION_DESDE, MODERN_KEYS, SERIES_BREAKS, VOLUME_KEYS
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
@@ -159,6 +159,10 @@ def build() -> dict:
         "metrics": METRICS,
         "volume_keys": VOLUME_KEYS,
         "series_breaks": SERIES_BREAKS,
+        # desde este período los balances vienen ajustados por inflación: los indicadores
+        # de rentabilidad ya son reales y no hay que deflactarlos
+        "ajuste_inflacion_desde": AJUSTE_INFLACION_DESDE,
+        "real_homogeneo_keys": ["roe", "roa"],
         "entities": sorted(activas, key=lambda e: e["code"]),
     }
     with open(DATA_DIR / "index.json", "w", encoding="utf-8") as f:

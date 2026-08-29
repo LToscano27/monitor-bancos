@@ -56,7 +56,19 @@ SERIES_BREAKS = {
                 "Las definiciones no son estrictamente comparables.",
     "mora": "Serie construida con A10 (era vieja) y A9 (era moderna): misma definición "
             "conceptual (cartera irregular / financiaciones totales).",
+    "roe": "Quiebre contable en enero de 2020: desde entonces los balances se presentan "
+           "ajustados por inflación, así que el ROE ya es un rendimiento real. Hasta 2019 "
+           "es nominal y hay que descontarle la inflación para compararlo. Usá la vista "
+           "«real homogéneo» para ver los 15 años en el mismo criterio.",
+    "roa": "Quiebre contable en enero de 2020: desde entonces los balances se presentan "
+           "ajustados por inflación, así que el ROA ya es un rendimiento real. Hasta 2019 "
+           "es nominal. Usá la vista «real homogéneo» para comparar toda la serie.",
 }
+
+# Primer período con balances ajustados por inflación (los resultados ya son reales).
+# Verificado empíricamente: hasta 2019 el ROE deflactado replica la variación real del
+# patrimonio neto; desde 2020 la replica el ROE publicado sin deflactar.
+AJUSTE_INFLACION_DESDE = "202001"
 
 
 # Los dumps viejos no traen Grupos.txt; nombres conocidos de los agrupamientos.
@@ -228,6 +240,18 @@ def parse_period(root: Path, period: str) -> dict:
                     row.update(extra)
                 elif row["code"] == "AA000":
                     row.update(sistema)
+
+    # El BCRA a veces publica el bloque entero de indicadores en cero cuando no los
+    # calculó para ese mes (verificado: feb-2018, todo el sistema en 0,00 con los montos
+    # correctos). Un cero aislado es legítimo —un banco sin cartera irregular tiene mora
+    # 0— pero si TODOS los indicadores de la fila son cero es dato faltante, no un valor.
+    ind_keys = [k for k in MODERN_KEYS if k not in VOLUME_KEYS]
+    for row in rows:
+        presentes = [row[k] for k in ind_keys if row.get(k) is not None]
+        if presentes and all(v == 0 for v in presentes):
+            for k in ind_keys:
+                if k in row:
+                    row[k] = None
 
     entidades = []
     agregados = {}
