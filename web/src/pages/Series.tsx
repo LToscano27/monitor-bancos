@@ -9,6 +9,7 @@ import { deflateSeries } from "../lib/deflate";
 import {
   delta, fmtValue, GROUP_LABELS, isMoney, num, PALETTE, periodLabel, shiftPeriod, shortName,
 } from "../lib/format";
+import { realHomogeneo } from "../lib/realReturn";
 import { useCore } from "../lib/store";
 import type {
   CompositionMeta, CompositionSeries, MetricUnit, Series as SeriesMap,
@@ -72,6 +73,7 @@ export default function Series() {
   const [sel, setSel] = useState("AA000"); // selección única: código de grupo (AA###) o de entidad
   const [entSeries, setEntSeries] = useState<Record<string, SeriesMap>>({});
   const [mode, setMode] = useState<"nominal" | "real">("nominal");
+  const [rentMode, setRentMode] = useState<"real" | "publicado">("real");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [compo, setCompo] = useState<CompositionSeries | null>(null);
   const [compoMeta, setCompoMeta] = useState<CompositionMeta | null>(null);
@@ -83,6 +85,12 @@ export default function Series() {
   const money = def ? isMoney(def.unit) : false;
   const canReal = money && ipc != null;
   const real = mode === "real" && canReal;
+
+  // ROE y ROA: hasta 2019 son nominales y desde 2020 reales; se pueden ver empalmados
+  const desdeAjuste = index.ajuste_inflacion_desde;
+  const canHomog = !seccion && ipc != null && desdeAjuste != null &&
+    (index.real_homogeneo_keys ?? []).includes(metric);
+  const homog = canHomog && rentMode === "real";
 
   useEffect(() => {
     if (!sel.startsWith("AA") && !entSeries[sel]) {
@@ -107,9 +115,12 @@ export default function Series() {
     if (seccion) return [];
     let v = srcSeries?.[metric] ?? [];
     if (real && ipc) v = deflateSeries(v, periods, ipc, refPeriod);
+    if (homog && srcSeries && ipc && desdeAjuste) {
+      v = realHomogeneo(metric as "roe" | "roa", srcSeries, periods, ipc, desdeAjuste);
+    }
     return v;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [srcSeries, metric, seccion, real, ipc, periods, refPeriod]);
+  }, [srcSeries, metric, seccion, real, homog, ipc, periods, refPeriod]);
 
   // último período con dato para esta selección
   const lastIdx = useMemo(() => {
@@ -192,6 +203,16 @@ export default function Series() {
             ]}
             value={real ? "real" : "nominal"}
             onChange={(v) => canReal && setMode(v)}
+          />
+        )}
+        {canHomog && (
+          <Seg
+            options={[
+              { value: "real", label: "Real homogéneo" },
+              { value: "publicado", label: "Publicado" },
+            ]}
+            value={rentMode}
+            onChange={setRentMode}
           />
         )}
       </div>
@@ -284,7 +305,9 @@ export default function Series() {
         <div className="card">
           <h3>{def.label} · {nameOf(sel)}</h3>
           <div className="cs">
-            {real ? "Pesos constantes del último período" : "Valores publicados"}
+            {homog
+              ? "Rendimiento real en toda la serie"
+              : real ? "Pesos constantes del último período" : "Valores publicados"}
             {base ? ` · último dato ${periodLabel(base, true)}` : ""}
           </div>
           <TimeSeriesChart
@@ -292,7 +315,17 @@ export default function Series() {
             datasets={[{ label: nameOf(sel), values, color }]}
             unit={def.unit}
           />
-          {breakNote && <div className="note">{breakNote}</div>}
+          {homog ? (
+            <div className="note">
+              Desde enero de 2020 los balances se presentan ajustados por inflación y el indicador
+              publicado ya es un rendimiento real: se muestra tal cual. Hasta 2019 era nominal, así
+              que se le descuenta la inflación interanual para que los 15 años queden en el mismo
+              criterio. El primer año no se puede calcular porque falta la inflación de los doce
+              meses previos. En «Publicado» ves la serie tal como la informa el BCRA.
+            </div>
+          ) : (
+            breakNote && <div className="note">{breakNote}</div>
+          )}
           {money && mode === "nominal" && (
             <div className="note">
               Serie en pesos corrientes: con alta inflación el crecimiento nominal sobreestima el real.

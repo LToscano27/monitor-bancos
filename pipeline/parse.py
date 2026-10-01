@@ -49,20 +49,37 @@ OLD_INDICATOR_MAP = {
     "L2": "liquidez",
 }
 
+# Entre 2014-05 y 2017-03 el ranking seguía con el layout viejo (solo montos) pero
+# indicad/completo.txt ya traía los 31 indicadores del listado moderno. Varios tokens se
+# repiten entre ambos listados con otro significado (R2 era el ROA y pasó a ser el
+# rendimiento ordinario del patrimonio), así que el listado se identifica por archivo:
+# si aparece RG1 —que solo existe en el moderno— se usa este mapeo.
+MODERN_INDICAD_MAP = {
+    "C1": "apalancamiento", "C2": "c2", "C3": "c3",
+    "A9": "mora", "A11": "a11", "A12": "a12", "A13": "a13", "A14": "a14",
+    "A16": "a16", "A17": "a17", "A21": "a21", "AG3": "ag3", "AG29": "ag29",
+    "E1": "e1", "E2": "e2", "E4": "e4", "E5": "e5",
+    "R1": "roe", "R2": "r2", "R8": "r8", "R9": "r9", "R17": "r17",
+    "RG1": "roa", "RG2": "rg2_ii", "RG3": "rg3", "RG4": "rg4_ii", "RG5": "rg5",
+    "RG15": "rg15",
+    "L1": "liquidez", "L8_II": "l8_ii", "L9": "l9",
+}
+MODERN_CODEBOOK_MARKER = "RG1"
+
 # Quiebres de definición a documentar en index.json y marcar en la UI.
 SERIES_BREAKS = {
-    "liquidez": "Hasta el cambio de codebook del BCRA la serie corresponde a L2 (activos "
-                "líquidos / pasivos líquidos); desde entonces es L1 (liquidez amplia). "
-                "Las definiciones no son estrictamente comparables.",
+    "liquidez": "Hasta abril de 2014 la serie corresponde a L2 (activos líquidos / pasivos "
+                "líquidos); desde mayo de 2014 es L1 (liquidez amplia). Las definiciones "
+                "no son estrictamente comparables.",
     "mora": "Serie construida con A10 (era vieja) y A9 (era moderna): misma definición "
             "conceptual (cartera irregular / financiaciones totales).",
     "roe": "Quiebre contable en enero de 2020: desde entonces los balances se presentan "
            "ajustados por inflación, así que el ROE ya es un rendimiento real. Hasta 2019 "
-           "es nominal y hay que descontarle la inflación para compararlo. Usá la vista "
-           "«real homogéneo» para ver los 15 años en el mismo criterio.",
+           "es nominal y hay que descontarle la inflación para compararlo. En la página "
+           "Series podés verlo en criterio «real homogéneo» para los 15 años.",
     "roa": "Quiebre contable en enero de 2020: desde entonces los balances se presentan "
            "ajustados por inflación, así que el ROA ya es un rendimiento real. Hasta 2019 "
-           "es nominal. Usá la vista «real homogéneo» para comparar toda la serie.",
+           "es nominal. En la página Series podés verlo en criterio «real homogéneo».",
 }
 
 # Primer período con balances ajustados por inflación (los resultados ya son reales).
@@ -158,13 +175,13 @@ def parse_indicad_completo(lines: list[str]) -> tuple[dict, dict, dict]:
     por_entidad: dict[str, dict] = {}
     sistema: dict[str, float | None] = {}
     nombres: dict[str, str] = {}
-    for ln in lines:
-        fields = split_tsv(ln)
-        if len(fields) < 13:
-            continue
+    filas = [f for f in (split_tsv(ln) for ln in lines) if len(f) >= 13]
+    moderno = any(_indicator_token(f[4]) == MODERN_CODEBOOK_MARKER for f in filas)
+    mapa = MODERN_INDICAD_MAP if moderno else OLD_INDICATOR_MAP
+    for fields in filas:
         code, nombre, desc = fields[0], fields[1], fields[4]
         token = _indicator_token(desc)
-        key = OLD_INDICATOR_MAP.get(token or "")
+        key = mapa.get(token or "")
         if key is None:
             continue
         nombres[code] = nombre

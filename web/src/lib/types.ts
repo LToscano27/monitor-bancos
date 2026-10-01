@@ -21,6 +21,10 @@ export interface DataIndex {
   metrics: Record<string, MetricDef>;
   volume_keys: string[];
   series_breaks: Record<string, string>;
+  /** primer período con balances ajustados por inflación (rentabilidad ya en términos reales) */
+  ajuste_inflacion_desde?: string;
+  /** indicadores que se pueden ver en criterio real homogéneo */
+  real_homogeneo_keys?: string[];
   entities: EntityRef[];
 }
 
