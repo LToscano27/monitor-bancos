@@ -5,7 +5,7 @@ import BalanceComposition from "../components/BalanceComposition";
 import Kpi from "../components/Kpi";
 import Seg from "../components/Seg";
 import TimeSeriesChart from "../components/TimeSeriesChart";
-import { loadMeta } from "../lib/data";
+import { loadMeta, loadTamar } from "../lib/data";
 import { deflateSeries } from "../lib/deflate";
 import { fmtValue, GROUP_LABELS, num, PALETTE, pct, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
@@ -36,6 +36,15 @@ export default function Home() {
   useEffect(() => {
     loadMeta(compGroup).then(setCompMeta).catch(() => setCompMeta(null));
   }, [compGroup]);
+
+  // TAMAR de bancos privados (API del BCRA), promedio del mes que muestra la portada
+  const [tamar, setTamar] = useState<Map<string, number> | null>(null);
+  useEffect(() => {
+    loadTamar()
+      .then((t) => setTamar(new Map(t.periods.map((p, i) => [p, t.promedio[i]]))))
+      .catch(() => setTamar(null));
+  }, []);
+  const tamarDe = (p: string) => tamar?.get(p) ?? null;
 
   const seriesOf = (gcode: string, key: string) => {
     const raw = system.groups[gcode]?.[key] ?? [];
@@ -130,7 +139,18 @@ export default function Home() {
             prevYear={idxPrevYear >= 0 ? pdSeries[idxPrevYear] : null}
           />
           {kpiCard("r8", false, "Tasa implícita préstamos")}
-          {kpiCard("r9", false, "Tasa implícita depósitos")}
+          {tamarDe(latest) != null ? (
+            <Kpi
+              label="Tasa TAMAR (TNA)"
+              unit="pct"
+              value={tamarDe(latest)}
+              prevMonth={tamarDe(shiftPeriod(latest, -1))}
+              prevYear={tamarDe(shiftPeriod(latest, -12))}
+            />
+          ) : (
+            // sin dato de TAMAR para el período se mantiene la tasa de depósitos del balance
+            kpiCard("r9", false, "Tasa implícita depósitos")
+          )}
         </div>
         {real && (
           <div className="note" style={{ marginTop: 10 }}>

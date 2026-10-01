@@ -22,6 +22,9 @@ export const loadSystem = () => fetchJson<SystemSeries>("/data/series/system.jso
 export const loadEntity = (code: string) => fetchJson<EntitySeries>(`/data/series/entities/${code}.json`);
 export const loadPeriod = (p: string) => fetchJson<PeriodData>(`/data/periods/${p}.json`);
 export const loadIpc = () => fetchJson<IpcData>("/data/ipc.json");
+/** Tasa TAMAR de bancos privados (TNA), promedio mensual. */
+export const loadTamar = () =>
+  fetchJson<{ periods: string[]; promedio: number[] }>("/data/tamar.json");
 export const loadMeta = (code: string) => fetchJson<EntityMeta>(`/data/meta/${code}.json`);
 export const loadComposition = (code: string) =>
   fetchJson<CompositionSeries>(`/data/composition/${code}.json`);
