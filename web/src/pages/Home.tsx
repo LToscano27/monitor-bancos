@@ -5,7 +5,7 @@ import BalanceComposition from "../components/BalanceComposition";
 import Kpi from "../components/Kpi";
 import Seg from "../components/Seg";
 import TimeSeriesChart from "../components/TimeSeriesChart";
-import { loadMeta, loadTamar } from "../lib/data";
+import { loadMeta, loadTasasMercado } from "../lib/data";
 import { deflateSeries } from "../lib/deflate";
 import { fmtValue, GROUP_LABELS, num, PALETTE, pct, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
@@ -37,14 +37,31 @@ export default function Home() {
     loadMeta(compGroup).then(setCompMeta).catch(() => setCompMeta(null));
   }, [compGroup]);
 
-  // TAMAR de bancos privados (API del BCRA), promedio del mes que muestra la portada
-  const [tamar, setTamar] = useState<Map<string, number> | null>(null);
+  // tasas de mercado (API del BCRA): promedio del mes que muestra la portada
+  const [tasas, setTasas] = useState<Record<string, Map<string, number>>>({});
   useEffect(() => {
-    loadTamar()
-      .then((t) => setTamar(new Map(t.periods.map((p, i) => [p, t.promedio[i]]))))
-      .catch(() => setTamar(null));
+    loadTasasMercado()
+      .then((t) => setTasas(Object.fromEntries(Object.entries(t.series).map(
+        ([k, s]) => [k, new Map(s.periods.map((p, i) => [p, s.promedio[i]]))],
+      ))))
+      .catch(() => setTasas({}));
   }, []);
-  const tamarDe = (p: string) => tamar?.get(p) ?? null;
+  const tasaDe = (serie: string, p: string) => tasas[serie]?.get(p) ?? null;
+
+  // tarjeta de una tasa de mercado; si no hay dato para el período, la del balance
+  const tasaCard = (serie: string, label: string, respaldo: [string, string]) =>
+    tasaDe(serie, latest) != null ? (
+      <Kpi
+        key={serie}
+        label={label}
+        unit="pct"
+        value={tasaDe(serie, latest)}
+        prevMonth={tasaDe(serie, shiftPeriod(latest, -1))}
+        prevYear={tasaDe(serie, shiftPeriod(latest, -12))}
+      />
+    ) : (
+      kpiCard(respaldo[0], false, respaldo[1])
+    );
 
   const seriesOf = (gcode: string, key: string) => {
     const raw = system.groups[gcode]?.[key] ?? [];
@@ -138,19 +155,8 @@ export default function Home() {
             prevMonth={idxPrevMonth >= 0 ? pdSeries[idxPrevMonth] : null}
             prevYear={idxPrevYear >= 0 ? pdSeries[idxPrevYear] : null}
           />
-          {kpiCard("r8", false, "Tasa implícita préstamos")}
-          {tamarDe(latest) != null ? (
-            <Kpi
-              label="Tasa TAMAR (TNA)"
-              unit="pct"
-              value={tamarDe(latest)}
-              prevMonth={tamarDe(shiftPeriod(latest, -1))}
-              prevYear={tamarDe(shiftPeriod(latest, -12))}
-            />
-          ) : (
-            // sin dato de TAMAR para el período se mantiene la tasa de depósitos del balance
-            kpiCard("r9", false, "Tasa implícita depósitos")
-          )}
+          {tasaCard("pases", "Tasa de pases entre terceros", ["r8", "Tasa implícita préstamos"])}
+          {tasaCard("tamar", "Tasa TAMAR (TNA)", ["r9", "Tasa implícita depósitos"])}
         </div>
         {real && (
           <div className="note" style={{ marginTop: 10 }}>

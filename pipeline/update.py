@@ -60,10 +60,10 @@ def main() -> int:
     except Exception as e:  # el IPC no debe frenar la actualización de datos BCRA
         print(f"aviso: actualización de IPC falló: {e}", file=sys.stderr)
     try:
-        import tamar
-        tamar.main()
-    except Exception as e:  # la TAMAR es un dato de contexto: tampoco frena la corrida
-        print(f"aviso: actualización de TAMAR falló: {e}", file=sys.stderr)
+        import tasas_mercado
+        tasas_mercado.main()
+    except Exception as e:  # tasas de contexto: tampoco frenan la corrida
+        print(f"aviso: actualización de tasas de mercado falló: {e}", file=sys.stderr)
 
     print(f"NEW_PERIODS={','.join(new)}")
     return 0
