@@ -2,10 +2,11 @@ name: Actualizar datos BCRA
 
 on:
   schedule:
-    # El BCRA publica con ~3 meses de rezago y sin fecha fija: chequeamos dos veces
-    # por semana (lunes y jueves, 12:00 UTC). update.py es idempotente: si no hay
-    # período nuevo termina sin tocar nada.
-    - cron: "0 12 * * 1,4"
+    # Corre todos los días, a la mañana y a la noche (hora argentina): las tasas de
+    # mercado (TAMAR, pases) cambian a diario. De paso se chequea si el BCRA publicó un
+    # período nuevo del balance; update.py es idempotente y si no hay nada no toca nada.
+    - cron: "0 12 * * *"
+    - cron: "0 23 * * *"
   workflow_dispatch:
 
 permissions:
@@ -34,7 +35,8 @@ jobs:
       # Las tasas de mercado son diarias: se refrescan en cada corrida, haya o no un
       # período nuevo del balance. Si la API falla no se frena el resto.
       - name: Actualizar tasas de mercado
-        run: python pipeline/tasas_mercado.py || echo "aviso: no se pudieron actualizar las tasas"
+        run: |
+          python pipeline/tasas_mercado.py || echo "aviso - no se pudieron actualizar las tasas"
 
       - name: Commitear datos nuevos
         run: |
