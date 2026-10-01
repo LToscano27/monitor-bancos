@@ -2,7 +2,7 @@
 
 # Monitor del Sistema Financiero Argentino
 
-**Quince años de balances de todos los bancos argentinos, en un tablero que se actualiza solo.**
+**Quince años de balances de todos los bancos argentinos, en un tablero con actualización automática.**
 
 [![Sitio en vivo](https://img.shields.io/badge/sitio-monitorbancos.vercel.app-4da3ff?style=for-the-badge)](https://monitorbancos.vercel.app)
 
