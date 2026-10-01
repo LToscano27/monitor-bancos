@@ -31,11 +31,23 @@ jobs:
           python pipeline/update.py | tee update.log
           echo "new_periods=$(grep -oP '(?<=^NEW_PERIODS=).*' update.log | tail -1)" >> "$GITHUB_OUTPUT"
 
+      # Las tasas de mercado son diarias: se refrescan en cada corrida, haya o no un
+      # período nuevo del balance. Si la API falla no se frena el resto.
+      - name: Actualizar tasas de mercado
+        run: python pipeline/tasas_mercado.py || echo "aviso: no se pudieron actualizar las tasas"
+
       - name: Commitear datos nuevos
-        if: steps.update.outputs.new_periods != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/ web/public/logos/
-          git commit -m "data: período(s) ${{ steps.update.outputs.new_periods }} [bot]"
+          if git diff --cached --quiet; then
+            echo "sin cambios"
+            exit 0
+          fi
+          if [ -n "${{ steps.update.outputs.new_periods }}" ]; then
+            git commit -m "data: período(s) ${{ steps.update.outputs.new_periods }} [bot]"
+          else
+            git commit -m "data: tasas de mercado [bot]"
+          fi
           git push

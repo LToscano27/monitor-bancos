@@ -1,7 +1,8 @@
-"""Tasas de mercado que acompañan a los indicadores de la portada, en promedio mensual.
+"""Tasas de mercado que acompañan a los indicadores de la portada.
 
 Fuente: API de Estadísticas Monetarias del BCRA (series diarias, en % nominal anual).
-Se guarda el promedio de cada mes para alinearlas con los períodos del resto del sitio.
+La portada muestra el último dato diario, comparado contra el de un mes y un año antes.
+También se guarda el promedio de cada mes, alineado con los períodos del resto del sitio.
 
 - tamar: TAMAR de bancos privados (variable 44, desde 2024-10)
 - pases: operaciones de pases entre terceros a 1 día (variable 150, desde 2008)
@@ -47,6 +48,18 @@ def fetch_diaria(id_variable: int) -> list[tuple[str, float]]:
     return sorted(filas.items())
 
 
+def _valor_al(diaria: list[tuple[str, float]], fecha: str) -> float | None:
+    """Último dato publicado en `fecha` o antes (los fines de semana no hay dato)."""
+    previos = [v for f, v in diaria if f <= fecha]
+    return previos[-1] if previos else None
+
+
+def _restar_meses(fecha: str, meses: int) -> str:
+    y, m, d = int(fecha[:4]), int(fecha[5:7]), int(fecha[8:10])
+    t = y * 12 + (m - 1) - meses
+    return f"{t // 12:04d}-{t % 12 + 1:02d}-{d:02d}"
+
+
 def promedio_mensual(id_variable: int, descripcion: str) -> dict:
     diaria = fetch_diaria(id_variable)
     if not diaria:
@@ -56,11 +69,13 @@ def promedio_mensual(id_variable: int, descripcion: str) -> dict:
         por_mes[fecha[:4] + fecha[5:7]].append(valor)
     periods = sorted(p for p in por_mes if p >= PRIMER_PERIODO)
     return {
-        "descripcion": descripcion + ", promedio mensual",
+        "descripcion": descripcion,
         "variable": id_variable,
         "periods": periods,
         "promedio": [round(sum(por_mes[p]) / len(por_mes[p]), 4) for p in periods],
         "ultimo": {"fecha": diaria[-1][0], "valor": diaria[-1][1]},
+        "hace_un_mes": _valor_al(diaria, _restar_meses(diaria[-1][0], 1)),
+        "hace_un_anio": _valor_al(diaria, _restar_meses(diaria[-1][0], 12)),
     }
 
 

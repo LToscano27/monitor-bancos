@@ -5,7 +5,7 @@ import BalanceComposition from "../components/BalanceComposition";
 import Kpi from "../components/Kpi";
 import Seg from "../components/Seg";
 import TimeSeriesChart from "../components/TimeSeriesChart";
-import { loadMeta, loadTasasMercado } from "../lib/data";
+import { loadMeta, loadTasasMercado, type TasasMercado } from "../lib/data";
 import { deflateSeries } from "../lib/deflate";
 import { fmtValue, GROUP_LABELS, num, PALETTE, pct, periodLabel, shiftPeriod } from "../lib/format";
 import { useCore } from "../lib/store";
@@ -37,31 +37,29 @@ export default function Home() {
     loadMeta(compGroup).then(setCompMeta).catch(() => setCompMeta(null));
   }, [compGroup]);
 
-  // tasas de mercado (API del BCRA): promedio del mes que muestra la portada
-  const [tasas, setTasas] = useState<Record<string, Map<string, number>>>({});
+  // tasas de mercado (API del BCRA): último dato diario, que es más reciente que el balance
+  const [tasas, setTasas] = useState<TasasMercado["series"]>({});
   useEffect(() => {
-    loadTasasMercado()
-      .then((t) => setTasas(Object.fromEntries(Object.entries(t.series).map(
-        ([k, s]) => [k, new Map(s.periods.map((p, i) => [p, s.promedio[i]]))],
-      ))))
-      .catch(() => setTasas({}));
+    loadTasasMercado().then((t) => setTasas(t.series)).catch(() => setTasas({}));
   }, []);
-  const tasaDe = (serie: string, p: string) => tasas[serie]?.get(p) ?? null;
 
-  // tarjeta de una tasa de mercado; si no hay dato para el período, la del balance
-  const tasaCard = (serie: string, label: string, respaldo: [string, string]) =>
-    tasaDe(serie, latest) != null ? (
+  // tarjeta de una tasa de mercado; si no se pudo cargar, la tasa implícita del balance
+  const tasaCard = (serie: string, label: string, respaldo: [string, string]) => {
+    const t = tasas[serie];
+    if (!t?.ultimo) return kpiCard(respaldo[0], false, respaldo[1]);
+    const [, mes, dia] = t.ultimo.fecha.split("-");
+    return (
       <Kpi
         key={serie}
-        label={label}
+        label={`${label} · ${dia}/${mes}`}
         unit="pct"
-        value={tasaDe(serie, latest)}
-        prevMonth={tasaDe(serie, shiftPeriod(latest, -1))}
-        prevYear={tasaDe(serie, shiftPeriod(latest, -12))}
+        value={t.ultimo.valor}
+        digits={3}
+        prevMonth={t.hace_un_mes}
+        prevYear={t.hace_un_anio}
       />
-    ) : (
-      kpiCard(respaldo[0], false, respaldo[1])
     );
+  };
 
   const seriesOf = (gcode: string, key: string) => {
     const raw = system.groups[gcode]?.[key] ?? [];

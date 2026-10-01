@@ -22,11 +22,17 @@ export const loadSystem = () => fetchJson<SystemSeries>("/data/series/system.jso
 export const loadEntity = (code: string) => fetchJson<EntitySeries>(`/data/series/entities/${code}.json`);
 export const loadPeriod = (p: string) => fetchJson<PeriodData>(`/data/periods/${p}.json`);
 export const loadIpc = () => fetchJson<IpcData>("/data/ipc.json");
-/** Tasas de mercado del BCRA (TAMAR, pases entre terceros), promedio mensual en TNA. */
-export const loadTasasMercado = () =>
-  fetchJson<{ series: Record<string, { periods: string[]; promedio: number[] }> }>(
-    "/data/tasas_mercado.json",
-  );
+/** Tasas de mercado del BCRA (TAMAR, pases entre terceros) en TNA. */
+export interface TasasMercado {
+  series: Record<string, {
+    periods: string[];
+    promedio: number[];
+    ultimo: { fecha: string; valor: number };
+    hace_un_mes: number | null;
+    hace_un_anio: number | null;
+  }>;
+}
+export const loadTasasMercado = () => fetchJson<TasasMercado>("/data/tasas_mercado.json");
 export const loadMeta = (code: string) => fetchJson<EntityMeta>(`/data/meta/${code}.json`);
 export const loadComposition = (code: string) =>
   fetchJson<CompositionSeries>(`/data/composition/${code}.json`);
