@@ -53,7 +53,10 @@ def main() -> int:
         print(f"aviso: actualización de composición falló: {e}", file=sys.stderr)
     try:
         import ipc
-        ipc.build()
+        # main() y no build(): build() solo arma el índice en memoria, el que escribe
+        # data/ipc.json es main(). Con build() el IPC quedaba congelado y el último mes
+        # salía vacío en la vista de pesos constantes.
+        ipc.main()
     except Exception as e:  # el IPC no debe frenar la actualización de datos BCRA
         print(f"aviso: actualización de IPC falló: {e}", file=sys.stderr)
 
