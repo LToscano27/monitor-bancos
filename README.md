@@ -170,4 +170,4 @@ publicación original.
 
 ## Autor
 
-**Lautaro Toscano** · [@LToscano27](https://github.com/LToscano27)
+**Lautaro Toscano** · [@LautaroToscano](https://github.com/LautaroToscano)
