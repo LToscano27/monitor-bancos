@@ -6,12 +6,6 @@
 
 [![Sitio en vivo](https://img.shields.io/badge/sitio-monitorbancos.vercel.app-4da3ff?style=for-the-badge)](https://monitorbancos.vercel.app)
 
-[![Actualización de datos](https://github.com/LToscano27/monitor-bancos/actions/workflows/update.yml/badge.svg)](https://github.com/LToscano27/monitor-bancos/actions/workflows/update.yml)
-![Último commit](https://img.shields.io/github/last-commit/LToscano27/monitor-bancos?label=%C3%BAltima%20actualizaci%C3%B3n)
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
-
 [![Portada del monitor](docs/portada.png)](https://monitorbancos.vercel.app)
 
 </div>
